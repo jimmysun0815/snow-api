@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雪场数据监控系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 4px;
+        }
+        
+        .stat-item strong {
+            display: block;
+            font-size: 20px;
+            color: #333;
+        }
+        
+        .stat-item span {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .filters {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filters label {
+            margin-right: 15px;
+            font-size: 14px;
+        }
+        
+        .filters select, .filters input {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 15px;
+        }
+        
+        .resort-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        
+        .resort-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .resort-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .webcam-button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+        
+        .webcam-button:hover {
+            background: #cc0000;
+        }
+        
+        .webcam-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 0;
+            width: 90%;
+            max-width: 900px;
+            border-radius: 8px;
+            position: relative;
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+        
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+            line-height: 1;
+        }
+        
+        .close-button:hover {
+            color: #000;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .webcam-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .webcam-link {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #333;
+            transition: background 0.2s;
+        }
+        
+        .webcam-link:hover {
+            background: #e9ecef;
+        }
+        
+        .webcam-link-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+        
+        .webcam-iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+            border-radius: 4px;
+        }
+        
+        .resort-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .resort-location {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-open {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-closed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-partial {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .data-section {
+            margin-bottom: 15px;
+        }
+        
+        .data-section h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .data-item {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+        
+        .data-label {
+            font-size: 11px;
+            color: #666;
+            display: block;
+        }
+        
+        .data-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            display: block;
+            margin-top: 2px;
+        }
+        
+        .weather-section {
+            background: #e7f3ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        
+        .weather-section h3 {
+            font-size: 14px;
+            color: #0066cc;
+            margin-bottom: 10px;
+        }
+        
+        .forecast {
+            margin-top: 10px;
+        }
+        
+        .forecast-day {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px solid #d0e7ff;
+        }
+        
+        .forecast-day:last-child {
+            border-bottom: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .refresh-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .refresh-btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>❄️ 雪场数据监控系统</h1>
+        <div class="stats">
+            <div class="stat-item">
+                <strong id="totalResorts">-</strong>
+                <span>总雪场数</span>
+            </div>
+            <div class="stat-item">
+                <strong id="openResorts">-</strong>
+                <span>开放中</span>
+            </div>
+            <div class="stat-item">
+                <strong id="lastUpdate">-</strong>
+                <span>最后更新</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="filters">
+        <label>
+            状态筛选:
+            <select id="statusFilter" onchange="filterResorts()">
+                <option value="all">全部</option>
+                <option value="open">开放</option>
+                <option value="closed">关闭</option>
+                <option value="partial">部分开放</option>
+            </select>
+        </label>
+        
+        <label>
+            搜索:
+            <input type="text" id="searchInput" placeholder="雪场名称或地点..." oninput="filterResorts()">
+        </label>
+        
+        <button class="refresh-btn" onclick="loadData()">🔄 刷新数据</button>
+        
+        <!-- 测试按钮 -->
+        <button class="webcam-button" onclick="alert('测试按钮可见！')">📹 测试 Webcam</button>
+    </div>
+
+    <div id="resortsContainer">
+        <div class="loading">⏳ 正在加载数据...</div>
+    </div>
+
+    <!-- Webcam 模态窗口 -->
+    <div id="webcamModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Webcam</h2>
+                <button class="close-button" onclick="closeWebcamModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Webcam 内容将在这里动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allResorts = [];
+        let webcamConfig = {};
+
+        // 加载数据
+        async function loadData() {
+            const container = document.getElementById('resortsContainer');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/resorts');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                allResorts = data.resorts || [];
+                
+                // 更新统计
+                updateStats(data);
+                
+                // 显示雪场
+                displayResorts(allResorts);
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                container.innerHTML = `
+                    <div class="error">
+                        ❌ 加载失败: ${error.message}
+                        <br><br>
+                        请确保 API 服务正在运行：python api.py
+                    </div>
+                `;
+            }
+        }
+
+        // 更新统计信息
+        function updateStats(data) {
+            const metadata = data.metadata || {};
+            document.getElementById('totalResorts').textContent = metadata.total_resorts || 0;
+            
+            const openCount = allResorts.filter(r => r.status === 'open').length;
+            document.getElementById('openResorts').textContent = openCount;
+            
+            const timestamp = metadata.timestamp || '';
+            if (timestamp) {
+                const date = new Date(timestamp);
+                document.getElementById('lastUpdate').textContent = 
+                    date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            }
+        }
+
+        // 筛选雪场
+        function filterResorts() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filtered = allResorts;
+            
+            // 状态筛选
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter(r => r.status === statusFilter);
+            }
+            
+            // 搜索筛选
+            if (searchText) {
+                filtered = filtered.filter(r => 
+                    r.name.toLowerCase().includes(searchText) ||
+                    (r.location && r.location.toLowerCase().includes(searchText))
+                );
+            }
+            
+            displayResorts(filtered);
+        }
+
+        // 显示雪场列表
+        function displayResorts(resorts) {
+            const container = document.getElementById('resortsContainer');
+            
+            if (resorts.length === 0) {
+                container.innerHTML = '<div class="loading">没有找到雪场数据</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="resort-grid">
+                    ${resorts.map(resort => createResortCard(resort)).join('')}
+                </div>
+            `;
+        }
+
+        // 创建雪场卡片
+        function createResortCard(resort) {
+            const statusClass = `status-${resort.status || 'closed'}`;
+            const statusText = {
+                'open': '开放',
+                'closed': '关闭',
+                'partial': '部分开放'
+            }[resort.status] || resort.status;
+            
+            const weather = resort.weather || {};
+            
+            // 检查是否有 webcam
+            const hasWebcam = webcamConfig[resort.slug];
+            console.log(`🔍 检查 ${resort.name} (${resort.slug}):`, {
+                'webcamConfig存在': !!webcamConfig,
+                'webcamConfig大小': Object.keys(webcamConfig).length,
+                'hasWebcam': !!hasWebcam,
+                'hasWebcam详情': hasWebcam
+            });
+            if (hasWebcam) {
+                console.log(`✅ ${resort.name} 应该显示 Webcam 按钮`);
+            } else {
+                console.log(`❌ ${resort.name} 不显示 Webcam 按钮`);
+            }
+            
+            return `
+                <div class="resort-card">
+                    <div class="resort-header">
+                        <div>
+                            <div class="resort-name">${resort.name}</div>
+                            <div class="resort-location">${resort.location || '-'}</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            ${hasWebcam ? `
+                                <button class="webcam-button" onclick="openWebcamModal('${resort.slug}')">
+                                    📹 Webcam
+                                </button>
+                            ` : ''}
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="data-section">
+                        <h3>❄️ 雪况</h3>
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <span class="data-label">24h新雪</span>
+                                <span class="data-value">${resort.new_snow || 0} cm</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">雪底深度</span>
+                                <span class="data-value">${resort.base_depth || 0} cm</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">温度</span>
+                                <span class="data-value">${resort.temperature || '-'}°C</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">数据源</span>
+                                <span class="data-value">${resort.data_source || '-'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="data-section">
+                        <h3>🎿 设施</h3>
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <span class="data-label">开放缆车</span>
+                                <span class="data-value">${resort.lifts_open || 0} / ${resort.lifts_total || 0}</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">开放雪道</span>
+                                <span class="data-value">${resort.trails_open || 0} / ${resort.trails_total || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${resort.elevation ? `
+                        <div class="data-section">
+                            <h3>🏔️ 海拔高度</h3>
+                            <div class="data-grid">
+                                <div class="data-item">
+                                    <span class="data-label">山脚</span>
+                                    <span class="data-value">${resort.elevation.min} m</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">山顶</span>
+                                    <span class="data-value">${resort.elevation.max} m</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">垂直落差</span>
+                                    <span class="data-value">${resort.elevation.vertical} m</span>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${weather.freezing_level_current ? `
+                        <div class="weather-section">
+                            <h3>🌡️ 天气详情</h3>
+                            <div class="data-grid">
+                                <div class="data-item">
+                                    <span class="data-label">湿度</span>
+                                    <span class="data-value">${weather.current?.humidity || '-'}%</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">风速</span>
+                                    <span class="data-value">${weather.current?.windspeed || '-'} km/h</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">风向</span>
+                                    <span class="data-value">${weather.current?.winddirection_compass || '-'}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">冰冻高度</span>
+                                    <span class="data-value">${Math.round(weather.freezing_level_current)} m</span>
+                                </div>
+                                ${weather.today?.sunrise ? `
+                                    <div class="data-item">
+                                        <span class="data-label">日出</span>
+                                        <span class="data-value">${weather.today.sunrise.split('T')[1]?.substring(0,5) || '-'}</span>
+                                    </div>
+                                    <div class="data-item">
+                                        <span class="data-label">日落</span>
+                                        <span class="data-value">${weather.today.sunset.split('T')[1]?.substring(0,5) || '-'}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            
+                            ${weather.hourly_forecast && weather.hourly_forecast.length > 0 ? `
+                                <div class="forecast" style="margin-top: 15px;">
+                                    <strong style="font-size: 12px;">未来24小时:</strong>
+                                    <div style="max-height: 150px; overflow-y: auto;">
+                                        ${weather.hourly_forecast.slice(0, 12).map(hour => {
+                                            const time = hour.time ? new Date(hour.time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) : '-';
+                                            return `
+                                                <div class="forecast-day" style="font-size: 11px; padding: 4px 0;">
+                                                    <span style="width: 50px;">${time}</span>
+                                                    <span style="width: 60px;">🌡️ ${hour.temperature !== null ? Math.round(hour.temperature) : '-'}°C</span>
+                                                    <span style="width: 70px;">💨 ${hour.windspeed !== null ? Math.round(hour.windspeed) : '-'} km/h</span>
+                                                    <span style="width: 50px;">💧 ${hour.humidity !== null ? hour.humidity : '-'}%</span>
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${weather.forecast_7d && weather.forecast_7d.length > 0 ? `
+                                <div class="forecast" style="margin-top: 10px;">
+                                    <strong style="font-size: 12px;">未来7天预报:</strong>
+                                    ${weather.forecast_7d.slice(0, 3).map(day => `
+                                        <div class="forecast-day">
+                                            <span>${day.date || '-'}</span>
+                                            <span>${day.temp_min || '-'}°C ~ ${day.temp_max || '-'}°C</span>
+                                            <span>${day.snowfall > 0 ? '❄️ ' + day.snowfall + ' cm' : '-'}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // 加载 Webcam 配置
+        async function loadWebcamConfig() {
+            try {
+                const response = await fetch('webcams_config.json');
+                const data = await response.json();
+                
+                // 转换为 slug 索引的对象
+                const resorts = data.resorts_webcams || [];
+                resorts.forEach(resort => {
+                    webcamConfig[resort.slug] = resort;
+                });
+                
+                console.log('✅ Webcam 配置加载完成:', Object.keys(webcamConfig).length, '个雪场');
+                console.log('📋 Webcam slug 列表:', Object.keys(webcamConfig));
+                
+                return true;
+            } catch (error) {
+                console.warn('⚠️ Webcam 配置加载失败:', error);
+                return false;
+            }
+        }
+        
+        // 打开 Webcam 模态窗口
+        function openWebcamModal(slug) {
+            const resort = webcamConfig[slug];
+            if (!resort) {
+                alert('未找到该雪场的 Webcam 信息');
+                return;
+            }
+            
+            const modal = document.getElementById('webcamModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalTitle.textContent = `📹 ${resort.name} - Webcam`;
+            
+            let content = '<div class="webcam-links">';
+            
+            // YouTube 频道
+            if (resort.youtube_channel) {
+                content += `
+                    <a href="${resort.youtube_channel}" target="_blank" class="webcam-link">
+                        <span class="webcam-link-icon">▶️</span>
+                        <div>
+                            <strong>YouTube 频道</strong>
+                            <div style="font-size: 12px; color: #666;">查看雪场视频和直播</div>
+                        </div>
+                    </a>
+                `;
+            }
+            
+            // 官网 Webcam
+            if (resort.webcam_page) {
+                content += `
+                    <a href="${resort.webcam_page}" target="_blank" class="webcam-link">
+                        <span class="webcam-link-icon">🌐</span>
+                        <div>
+                            <strong>官网实时摄像头</strong>
+                            <div style="font-size: 12px; color: #666;">查看多角度实时画面</div>
+                        </div>
+                    </a>
+                `;
+            }
+            
+            // OnTheSnow webcam
+            const onTheSnowUrl = `https://www.onthesnow.com/${resort.slug}/webcams`;
+            content += `
+                <a href="${onTheSnowUrl}" target="_blank" class="webcam-link">
+                    <span class="webcam-link-icon">📷</span>
+                    <div>
+                        <strong>OnTheSnow Webcam</strong>
+                        <div style="font-size: 12px; color: #666;">第三方聚合摄像头</div>
+                    </div>
+                </a>
+            `;
+            
+            // 实时摄像头列表
+            if (resort.live_cams && resort.live_cams.length > 0) {
+                content += '<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">';
+                content += '<strong style="font-size: 14px;">🎥 实时摄像头:</strong>';
+                resort.live_cams.forEach(cam => {
+                    content += `
+                        <a href="${cam.url}" target="_blank" class="webcam-link" style="margin-top: 8px;">
+                            <span class="webcam-link-icon">📹</span>
+                            <div>
+                                <strong>${cam.name}</strong>
+                                <div style="font-size: 12px; color: #666;">${cam.type === 'official' ? '官方' : '第三方'}</div>
+                            </div>
+                        </a>
+                    `;
+                });
+                content += '</div>';
+            }
+            
+            // 如果没有任何 webcam
+            if (!resort.youtube_channel && !resort.webcam_page && (!resort.live_cams || resort.live_cams.length === 0)) {
+                content += `
+                    <div style="padding: 20px; text-align: center; color: #666;">
+                        <div style="font-size: 32px; margin-bottom: 10px;">📹</div>
+                        <div>暂无 Webcam 信息</div>
+                        ${resort.youtube_search ? `
+                            <div style="margin-top: 10px; font-size: 12px;">
+                                建议搜索: ${resort.youtube_search}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            content += '</div>';
+            
+            modalBody.innerHTML = content;
+            modal.style.display = 'block';
+        }
+        
+        // 关闭 Webcam 模态窗口
+        function closeWebcamModal() {
+            const modal = document.getElementById('webcamModal');
+            modal.style.display = 'none';
+        }
+        
+        // 点击模态窗口外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('webcamModal');
+            if (event.target === modal) {
+                closeWebcamModal();
+            }
+        }
+        
+        // ESC 键关闭模态窗口
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeWebcamModal();
+            }
+        });
+        
+        // 页面加载时获取数据
+        async function init() {
+            // 先加载 webcam 配置，再加载雪场数据
+            console.log('🚀 开始初始化...');
+            await loadWebcamConfig();
+            console.log('📊 Webcam 配置已加载，开始加载雪场数据...');
+            await loadData();
+            console.log('✅ 初始化完成');
+        }
+        
+        init();
+        
+        // 每5分钟自动刷新
+        setInterval(loadData, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
+

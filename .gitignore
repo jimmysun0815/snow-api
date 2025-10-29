@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Database Data (Docker volumes)
+data/postgres/
+data/redis/
+data/trails/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+api.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Process IDs
+*.pid
+.trail_server.pid
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+tmp/
+temp/
+
+# Docker
+docker-compose.override.yml
+
+# Redis dump
+dump.rdb
+
+# Editor backups
+*~
+*.swp
+*.swo
+

@@ -1,0 +1,290 @@
+{
+  "resorts_webcams": [
+    {
+      "id": 1,
+      "name": "Mammoth Mountain",
+      "slug": "mammoth-mountain",
+      "youtube_channel": "https://www.youtube.com/@mammothmountain",
+      "webcam_page": "https://www.mammothmountain.com/webcams",
+      "live_cams": [
+        {
+          "name": "Main Lodge",
+          "type": "official",
+          "url": "https://www.mammothmountain.com/webcams"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Whistler Blackcomb",
+      "slug": "whistler-blackcomb",
+      "youtube_channel": "https://www.youtube.com/@WhistlerBlackcomb",
+      "webcam_page": "https://www.whistlerblackcomb.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+      "live_cams": [
+        {
+          "name": "Roundhouse Lodge",
+          "type": "official",
+          "url": "https://www.whistlerblackcomb.com/the-mountain/mountain-conditions/mountain-cams.aspx"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Cypress Mountain",
+      "slug": "cypress-mountain",
+      "webcam_page": "https://www.cypressmountain.com/conditions/",
+      "youtube_search": "Cypress Mountain webcam live",
+      "live_cams": []
+    },
+    {
+      "id": 4,
+      "name": "Grouse Mountain",
+      "slug": "grouse-mountain",
+      "webcam_page": "https://www.grousemountain.com/web-cams",
+      "youtube_search": "Grouse Mountain webcam",
+      "live_cams": [
+        {
+          "name": "Peak Cam",
+          "type": "official",
+          "url": "https://www.grousemountain.com/web-cams"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Vail",
+      "slug": "vail",
+      "youtube_channel": "https://www.youtube.com/@vail",
+      "webcam_page": "https://www.vail.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+      "live_cams": [
+        {
+          "name": "Eagle's Nest",
+          "type": "official",
+          "url": "https://www.vail.com/the-mountain/mountain-conditions/mountain-cams.aspx"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Aspen Snowmass",
+      "slug": "aspen-snowmass",
+      "youtube_channel": "https://www.youtube.com/@aspensnowmass",
+      "webcam_page": "https://www.aspensnowmass.com/our-mountains/webcams",
+      "live_cams": [
+        {
+          "name": "Ajax Mountain",
+          "type": "official",
+          "url": "https://www.aspensnowmass.com/our-mountains/webcams"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Breckenridge",
+      "slug": "breckenridge",
+      "youtube_channel": "https://www.youtube.com/@breckenridge",
+      "webcam_page": "https://www.breckenridge.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+      "live_cams": []
+    },
+    {
+      "id": 15,
+      "name": "Keystone",
+      "slug": "keystone",
+      "youtube_channel": "https://www.youtube.com/@keystoneresort",
+      "webcam_page": "https://www.keystoneresort.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+      "live_cams": []
+    },
+    {
+      "id": 17,
+      "name": "Steamboat",
+      "slug": "steamboat",
+      "youtube_channel": "https://www.youtube.com/@SteamboatResort",
+      "webcam_page": "https://www.steamboat.com/the-mountain/mountain-report/mountain-cams",
+      "live_cams": []
+    },
+    {
+      "id": 18,
+      "name": "Copper Mountain",
+      "slug": "copper-mountain",
+      "webcam_page": "https://www.coppercolorado.com/the-mountain/conditions-and-cams/mountain-cams",
+      "live_cams": []
+    },
+    {
+      "id": 19,
+      "name": "Park City",
+      "slug": "park-city-mountain-resort",
+      "youtube_channel": "https://www.youtube.com/@parkcitymountain",
+      "webcam_page": "https://www.parkcitymountain.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+      "live_cams": [
+        {
+          "name": "PayDay Lift",
+          "type": "official",
+          "url": "https://www.parkcitymountain.com/the-mountain/mountain-conditions/mountain-cams.aspx"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Deer Valley",
+      "slug": "deer-valley",
+      "webcam_page": "https://www.deervalley.com/explore-the-resort/about-deer-valley/live-deer-valley-web-cams",
+      "live_cams": []
+    },
+    {
+      "id": 21,
+      "name": "Alta",
+      "slug": "alta-ski-area",
+      "webcam_page": "https://www.alta.com/conditions",
+      "live_cams": [
+        {
+          "name": "Collins Lift",
+          "type": "official",
+          "url": "https://www.alta.com/conditions"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "Snowbird",
+      "slug": "snowbird",
+      "youtube_channel": "https://www.youtube.com/@snowbird",
+      "webcam_page": "https://www.snowbird.com/mountain-report/webcams/",
+      "live_cams": [
+        {
+          "name": "Tram Cam",
+          "type": "official",
+          "url": "https://www.snowbird.com/mountain-report/webcams/"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Palisades Tahoe",
+      "slug": "palisades-tahoe",
+      "youtube_channel": "https://www.youtube.com/@PalisadesTahoe",
+      "webcam_page": "https://palisadestahoe.com/mountain-information/webcams",
+      "live_cams": []
+    },
+    {
+      "id": 24,
+      "name": "Heavenly",
+      "slug": "heavenly-mountain-resort",
+      "youtube_channel": "https://www.youtube.com/@heavenly",
+      "webcam_page": "https://www.skiheavenly.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+      "live_cams": []
+    },
+    {
+      "id": 25,
+      "name": "Northstar",
+      "slug": "northstar-california",
+      "webcam_page": "https://www.northstarcalifornia.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+      "live_cams": []
+    },
+    {
+      "id": 26,
+      "name": "Jackson Hole",
+      "slug": "jackson-hole",
+      "youtube_channel": "https://www.youtube.com/@JacksonHole",
+      "webcam_page": "https://www.jacksonhole.com/webcams",
+      "live_cams": [
+        {
+          "name": "Teton Village",
+          "type": "official",
+          "url": "https://www.jacksonhole.com/webcams"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "Stevens Pass",
+      "slug": "stevens-pass-resort",
+      "webcam_page": "https://www.stevenspass.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+      "live_cams": []
+    },
+    {
+      "id": 28,
+      "name": "Crystal Mountain WA",
+      "slug": "crystal-mountain",
+      "webcam_page": "https://www.crystalmountainresort.com/the-mountain/mountain-report/mountain-cams",
+      "live_cams": []
+    },
+    {
+      "id": 29,
+      "name": "Mt. Bachelor",
+      "slug": "mt-bachelor",
+      "youtube_channel": "https://www.youtube.com/@mtbachelor",
+      "webcam_page": "https://www.mtbachelor.com/conditions-weather/mountain-cams/",
+      "live_cams": []
+    },
+    {
+      "id": 30,
+      "name": "Big White",
+      "slug": "big-white",
+      "webcam_page": "https://www.bigwhite.com/conditions/mountain-cams",
+      "live_cams": []
+    },
+    {
+      "id": 31,
+      "name": "Revelstoke",
+      "slug": "revelstoke-mountain",
+      "webcam_page": "https://www.revelstokemountainresort.com/mountain-information/webcams",
+      "live_cams": []
+    },
+    {
+      "id": 32,
+      "name": "Sun Peaks",
+      "slug": "sun-peaks",
+      "webcam_page": "https://www.sunpeaksresort.com/conditions-weather/webcams",
+      "live_cams": []
+    },
+    {
+      "id": 33,
+      "name": "Lake Louise",
+      "slug": "lake-louise",
+      "webcam_page": "https://www.skilouise.com/conditions-weather/webcams",
+      "live_cams": [
+        {
+          "name": "Front Side",
+          "type": "official",
+          "url": "https://www.skilouise.com/conditions-weather/webcams"
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "name": "Banff Sunshine",
+      "slug": "sunshine-village",
+      "webcam_page": "https://www.skibanff.com/conditions/webcams/",
+      "live_cams": []
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2025-10-28",
+    "total_resorts": 26,
+    "notes": "手动收集的雪场 webcam 信息，包括 YouTube 频道和官网链接"
+  },
+  "webcam_sources": [
+    {
+      "name": "雪场官网",
+      "description": "最可靠的来源，通常有多个实时摄像头",
+      "pros": ["高质量", "多角度", "官方维护"],
+      "cons": ["可能需要嵌入特殊播放器"]
+    },
+    {
+      "name": "YouTube 直播",
+      "description": "很多雪场在 YouTube 提供 24/7 直播",
+      "pros": ["易于嵌入", "稳定", "无需特殊播放器"],
+      "cons": ["不是所有雪场都有"]
+    },
+    {
+      "name": "OnTheSnow",
+      "description": "聚合多个雪场的 webcam",
+      "url_pattern": "https://www.onthesnow.com/[state]/[resort]/webcams",
+      "pros": ["统一界面", "覆盖面广"],
+      "cons": ["可能不是最新"]
+    }
+  ]
+}
+
+
