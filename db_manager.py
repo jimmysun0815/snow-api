@@ -106,6 +106,9 @@ class DatabaseManager:
                     current_winddirection_compass=current.get('winddirection_compass'),
                     freezing_level_current=weather_data.get('freezing_level_current'),
                     freezing_level_24h_avg=weather_data.get('freezing_level_24h_avg'),
+                    temp_base=weather_data.get('temp_base'),
+                    temp_mid=weather_data.get('temp_mid'),
+                    temp_summit=weather_data.get('temp_summit'),
                     today_sunrise=today.get('sunrise'),
                     today_sunset=today.get('sunset'),
                     today_temp_max=today.get('temp_max'),
@@ -180,6 +183,8 @@ class DatabaseManager:
                 'location': resort.location,
                 'lat': resort.lat,
                 'lon': resort.lon,
+                'elevation_min': resort.elevation_min,
+                'elevation_max': resort.elevation_max,
                 'elevation': {
                     'min': resort.elevation_min,
                     'max': resort.elevation_max,
@@ -192,12 +197,17 @@ class DatabaseManager:
                 data.update({
                     'status': latest_condition.status,
                     'new_snow': latest_condition.new_snow,
+                    'new_snow_24h': latest_condition.new_snow,
+                    'new_snow_48h': latest_condition.extra_data.get('new_snow_48h') if latest_condition.extra_data else None,
                     'base_depth': latest_condition.base_depth,
+                    'snow_depth_base': latest_condition.base_depth,
+                    'snow_depth_summit': latest_condition.extra_data.get('summit_depth') if latest_condition.extra_data else None,
                     'lifts_open': latest_condition.lifts_open,
                     'lifts_total': latest_condition.lifts_total,
                     'trails_open': latest_condition.trails_open,
                     'trails_total': latest_condition.trails_total,
                     'temperature': latest_condition.temperature,
+                    'opening_date': latest_condition.extra_data.get('opening_date') if latest_condition.extra_data else None,
                     'last_update': latest_condition.timestamp.isoformat(),
                     'data_source': latest_condition.data_source
                 })
@@ -205,6 +215,8 @@ class DatabaseManager:
             # 添加天气数据
             if latest_weather:
                 data['weather'] = {
+                    'temperature': latest_weather.current_temp,
+                    'humidity': latest_weather.current_humidity,
                     'current': {
                         'temperature': latest_weather.current_temp,
                         'humidity': latest_weather.current_humidity,
@@ -214,6 +226,9 @@ class DatabaseManager:
                     },
                     'freezing_level_current': latest_weather.freezing_level_current,
                     'freezing_level_24h_avg': latest_weather.freezing_level_24h_avg,
+                    'temp_base': latest_weather.temp_base,
+                    'temp_mid': latest_weather.temp_mid,
+                    'temp_summit': latest_weather.temp_summit,
                     'today': {
                         'sunrise': latest_weather.today_sunrise,
                         'sunset': latest_weather.today_sunset,
@@ -280,7 +295,7 @@ class DatabaseManager:
     
     def save_trails_data(self, resort_config: Dict, trails_data: Dict) -> bool:
         """
-        保存雪道数据到数据库
+        保存雪道数据和边界到数据库
         
         Args:
             resort_config: 雪场配置
@@ -292,10 +307,18 @@ class DatabaseManager:
         try:
             resort_id = resort_config['id']
             
-            # 1. 删除该雪场的旧雪道数据
+            # 1. 更新雪场边界（如果有）
+            boundary = trails_data.get('boundary')
+            if boundary:
+                resort = self.session.query(Resort).filter_by(id=resort_id).first()
+                if resort:
+                    resort.boundary = boundary
+                    print(f"✅ 保存边界数据 ({len(boundary)} 个点)")
+            
+            # 2. 删除该雪场的旧雪道数据
             self.session.query(ResortTrail).filter_by(resort_id=resort_id).delete()
             
-            # 2. 保存新雪道数据
+            # 3. 保存新雪道数据
             trails = trails_data.get('trails', [])
             
             for trail in trails:
@@ -315,10 +338,10 @@ class DatabaseManager:
                 )
                 self.session.add(trail_obj)
             
-            # 3. 提交事务
+            # 4. 提交事务
             self.session.commit()
             
-            # 4. 清除缓存
+            # 5. 清除缓存
             self._invalidate_trails_cache(resort_id, resort_config['slug'])
             
             print(f"✅ 保存 {len(trails)} 条雪道数据")

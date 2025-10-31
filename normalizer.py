@@ -7,6 +7,7 @@
 
 from typing import Dict, Optional
 from datetime import datetime
+from collectors.openmeteo import OpenMeteoCollector
 
 
 class DataNormalizer:
@@ -141,12 +142,49 @@ class DataNormalizer:
         windspeeds = hourly.get('windspeed_10m', [])
         winddirections = hourly.get('winddirection_10m', [])
         freezing_levels = hourly.get('freezinglevel_height', [])
+        weathercodes = hourly.get('weathercode', [])
         
         current_temp = temperatures[0] if temperatures else None
         current_humidity = humidities[0] if humidities else None
         current_windspeed = windspeeds[0] if windspeeds else None
         current_winddirection = winddirections[0] if winddirections else None
         current_freezing_level = freezing_levels[0] if freezing_levels else None
+        
+        # 气压层温度数据
+        temp_1000hPa = hourly.get('temperature_1000hPa', [])
+        temp_925hPa = hourly.get('temperature_925hPa', [])
+        temp_850hPa = hourly.get('temperature_850hPa', [])
+        temp_700hPa = hourly.get('temperature_700hPa', [])
+        temp_500hPa = hourly.get('temperature_500hPa', [])
+        
+        # 计算当前山脚、山腰、山顶的温度
+        elevation_min = resort_config.get('elevation_min')
+        elevation_max = resort_config.get('elevation_max')
+        current_temp_base = None
+        current_temp_mid = None
+        current_temp_summit = None
+        
+        if elevation_min and elevation_max:
+            # 当前时刻的气压层温度
+            current_pressure_temps = {
+                '1000hPa': temp_1000hPa[0] if temp_1000hPa else None,
+                '925hPa': temp_925hPa[0] if temp_925hPa else None,
+                '850hPa': temp_850hPa[0] if temp_850hPa else None,
+                '700hPa': temp_700hPa[0] if temp_700hPa else None,
+                '500hPa': temp_500hPa[0] if temp_500hPa else None,
+            }
+            
+            # 插值计算
+            current_temp_base = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                elevation_min, current_pressure_temps
+            )
+            elevation_mid = (elevation_min + elevation_max) / 2
+            current_temp_mid = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                elevation_mid, current_pressure_temps
+            )
+            current_temp_summit = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                elevation_max, current_pressure_temps
+            )
         
         # 未来24小时平均冰冻高度
         avg_freezing_level_24h = None
@@ -162,14 +200,37 @@ class DataNormalizer:
         hourly_forecast = []
         times = hourly.get('time', [])
         for i in range(min(24, len(times))):
-            hourly_forecast.append({
+            forecast_item = {
                 'time': times[i] if i < len(times) else None,
                 'temperature': temperatures[i] if i < len(temperatures) else None,
                 'humidity': humidities[i] if i < len(humidities) else None,
                 'windspeed': windspeeds[i] if i < len(windspeeds) else None,
                 'winddirection': winddirections[i] if i < len(winddirections) else None,
                 'freezing_level': freezing_levels[i] if i < len(freezing_levels) else None,
-            })
+                'weather_code': weathercodes[i] if i < len(weathercodes) else None,
+            }
+            
+            # 添加分层温度（如果有海拔数据）
+            if elevation_min and elevation_max:
+                pressure_temps_hour = {
+                    '1000hPa': temp_1000hPa[i] if i < len(temp_1000hPa) else None,
+                    '925hPa': temp_925hPa[i] if i < len(temp_925hPa) else None,
+                    '850hPa': temp_850hPa[i] if i < len(temp_850hPa) else None,
+                    '700hPa': temp_700hPa[i] if i < len(temp_700hPa) else None,
+                    '500hPa': temp_500hPa[i] if i < len(temp_500hPa) else None,
+                }
+                
+                forecast_item['temp_base'] = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                    elevation_min, pressure_temps_hour
+                )
+                forecast_item['temp_mid'] = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                    elevation_mid, pressure_temps_hour
+                )
+                forecast_item['temp_summit'] = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                    elevation_max, pressure_temps_hour
+                )
+            
+            hourly_forecast.append(forecast_item)
         
         # 今天的天气数据
         today_data = {}
@@ -228,6 +289,10 @@ class DataNormalizer:
             # 冰冻线
             'freezing_level_current': current_freezing_level,
             'freezing_level_24h_avg': avg_freezing_level_24h,
+            # 按海拔的温度
+            'temp_base': current_temp_base,
+            'temp_mid': current_temp_mid,
+            'temp_summit': current_temp_summit,
             # 今日数据
             'today': today_data,
             # 24小时预报

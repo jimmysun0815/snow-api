@@ -21,20 +21,30 @@ class OSMTrailsCollector(BaseCollector):
         采集雪道数据
         
         Returns:
-            包含雪道列表的字典或 None
+            包含雪道列表和边界的字典或 None
         """
         lat = self.resort_config.get('lat')
         lon = self.resort_config.get('lon')
+        resort_name = self.resort_config.get('name')
         
         if not lat or not lon:
             self.log('ERROR', '缺少经纬度信息')
             return None
         
-        # 计算搜索范围（约5公里半径的矩形）
+        # 步骤1: 获取雪场边界
+        self.log('INFO', '步骤1: 获取雪场边界')
+        boundary = self._fetch_resort_boundary(resort_name, lat, lon)
+        
+        if boundary:
+            self.log('INFO', f'✓ 找到边界 ({len(boundary)} 个点)')
+        else:
+            self.log('WARNING', '⚠ 未找到边界，将使用半径过滤')
+        
+        # 步骤2: 获取雪道数据
+        self.log('INFO', '步骤2: 获取雪道数据')
         search_radius_km = 5
         bbox = self._calculate_bbox(lat, lon, search_radius_km)
         
-        # 构建 Overpass 查询（增加超时到180秒）
         query = f"""
         [out:json][timeout:180];
         (
@@ -48,7 +58,6 @@ class OSMTrailsCollector(BaseCollector):
         self.random_delay(1.0, 2.0)
         
         try:
-            # Overpass API 需要 POST 请求（增加超时到 200 秒）
             response = requests.post(
                 self.OVERPASS_API_URL,
                 data={'data': query},
@@ -67,17 +76,19 @@ class OSMTrailsCollector(BaseCollector):
                 return None
             
             elements = data['elements']
-            self.log('INFO', f'找到 {len(elements)} 条雪道')
+            self.log('INFO', f'找到 {len(elements)} 条原始雪道')
             
-            # 处理雪道数据
-            trails = self._process_trails(elements, lat, lon)
+            # 步骤3: 处理和过滤雪道
+            self.log('INFO', '步骤3: 过滤雪道')
+            trails = self._process_trails(elements, lat, lon, boundary)
             
             return {
                 'resort_id': self.resort_config.get('id'),
-                'resort_name': self.resort_config.get('name'),
+                'resort_name': resort_name,
                 'center_lat': lat,
                 'center_lon': lon,
                 'search_radius_km': search_radius_km,
+                'boundary': boundary,  # 边界数据
                 'total_trails': len(trails),
                 'trails': trails
             }
@@ -87,6 +98,131 @@ class OSMTrailsCollector(BaseCollector):
             return None
         except Exception as e:
             self.log('ERROR', f'采集失败: {str(e)}')
+            return None
+    
+    def _fetch_resort_boundary(self, resort_name: str, lat: float, lon: float) -> Optional[List[List[float]]]:
+        """
+        获取雪场边界
+        
+        Args:
+            resort_name: 雪场名称
+            lat: 中心纬度
+            lon: 中心经度
+            
+        Returns:
+            边界坐标列表 [[lon, lat], ...] 或 None
+        """
+        # 搜索范围（10公里）
+        bbox = self._calculate_bbox(lat, lon, 10)
+        
+        # 尝试多种查询策略
+        queries = [
+            # 策略1: 精确名称匹配
+            f"""
+            [out:json][timeout:25];
+            (
+              way["landuse"="winter_sports"]["name"="{resort_name}"]{bbox};
+              relation["landuse"="winter_sports"]["name"="{resort_name}"]{bbox};
+              area["landuse"="winter_sports"]["name"="{resort_name}"]{bbox};
+            );
+            out geom;
+            """,
+            # 策略2: 部分名称匹配
+            f"""
+            [out:json][timeout:25];
+            (
+              way["landuse"="winter_sports"]["name"~"{resort_name.split()[0]}.*"]{bbox};
+              relation["landuse"="winter_sports"]["name"~"{resort_name.split()[0]}.*"]{bbox};
+            );
+            out geom;
+            """,
+            # 策略3: 仅查询 landuse=winter_sports，按距离排序
+            f"""
+            [out:json][timeout:25];
+            (
+              way["landuse"="winter_sports"]{bbox};
+              relation["landuse"="winter_sports"]{bbox};
+            );
+            out geom;
+            """
+        ]
+        
+        for i, query in enumerate(queries, 1):
+            try:
+                self.random_delay(0.5, 1.0)
+                response = requests.post(
+                    self.OVERPASS_API_URL,
+                    data={'data': query},
+                    headers=self.get_headers(),
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    elements = data.get('elements', [])
+                    
+                    if elements:
+                        self.log('INFO', f'策略{i}找到 {len(elements)} 个边界')
+                        # 取最接近中心的边界
+                        best_element = self._find_closest_boundary(elements, lat, lon)
+                        if best_element:
+                            return self._extract_boundary_geometry(best_element)
+                            
+            except Exception as e:
+                self.log('WARNING', f'策略{i}失败: {e}')
+                continue
+        
+        return None
+    
+    def _find_closest_boundary(self, elements: List[Dict], lat: float, lon: float) -> Optional[Dict]:
+        """找到最接近中心点的边界"""
+        if not elements:
+            return None
+        
+        if len(elements) == 1:
+            return elements[0]
+        
+        # 计算每个边界的中心点，找最近的
+        min_distance = float('inf')
+        closest = None
+        
+        for elem in elements:
+            boundary = self._extract_boundary_geometry(elem)
+            if boundary and len(boundary) > 0:
+                # 计算边界中心
+                center_lon = sum(p[0] for p in boundary) / len(boundary)
+                center_lat = sum(p[1] for p in boundary) / len(boundary)
+                
+                distance = self._haversine_distance(lat, lon, center_lat, center_lon)
+                if distance < min_distance:
+                    min_distance = distance
+                    closest = elem
+        
+        return closest
+    
+    def _extract_boundary_geometry(self, element: Dict) -> Optional[List[List[float]]]:
+        """从OSM元素中提取边界几何"""
+        geometry = []
+        
+        try:
+            if element['type'] == 'way':
+                for node in element.get('geometry', []):
+                    geometry.append([node['lon'], node['lat']])
+            elif element['type'] == 'relation':
+                # 只取outer成员
+                for member in element.get('members', []):
+                    if member.get('role') in ['outer', ''] and 'geometry' in member:
+                        for node in member['geometry']:
+                            geometry.append([node['lon'], node['lat']])
+            
+            # 确保边界是闭合的
+            if geometry and geometry[0] != geometry[-1]:
+                geometry.append(geometry[0])
+            
+            return geometry if len(geometry) >= 3 else None
+            
+        except Exception as e:
+            self.log('WARNING', f'提取边界失败: {e}')
             return None
     
     def _calculate_bbox(self, lat: float, lon: float, radius_km: float) -> str:
@@ -112,7 +248,8 @@ class OSMTrailsCollector(BaseCollector):
         
         return f"({south},{west},{north},{east})"
     
-    def _process_trails(self, elements: List[Dict], center_lat: float, center_lon: float) -> List[Dict]:
+    def _process_trails(self, elements: List[Dict], center_lat: float, center_lon: float, 
+                        boundary: Optional[List[List[float]]] = None) -> List[Dict]:
         """
         处理雪道数据
         
@@ -120,18 +257,100 @@ class OSMTrailsCollector(BaseCollector):
             elements: OSM 元素列表
             center_lat: 中心纬度
             center_lon: 中心经度
+            boundary: 雪场边界多边形 [[lon, lat], ...]
             
         Returns:
             处理后的雪道列表
         """
         trails = []
+        filtered_count = 0
         
         for element in elements:
             trail = self._process_single_trail(element, center_lat, center_lon)
             if trail:
-                trails.append(trail)
+                # 如果有边界，检查雪道是否在边界内
+                if boundary:
+                    if self._trail_in_boundary(trail['geometry'], boundary):
+                        trails.append(trail)
+                    else:
+                        filtered_count += 1
+                else:
+                    # 没有边界，使用原有的距离过滤（保留5公里内）
+                    if trail['distance_from_center_km'] <= 5.0:
+                        trails.append(trail)
+                    else:
+                        filtered_count += 1
+        
+        if filtered_count > 0:
+            self.log('INFO', f'✓ 过滤掉 {filtered_count} 条雪道，保留 {len(trails)} 条')
         
         return trails
+    
+    def _trail_in_boundary(self, trail_geometry: List[List[float]], boundary: List[List[float]]) -> bool:
+        """
+        判断雪道是否在边界内
+        采用采样策略：检查雪道上多个点
+        
+        Args:
+            trail_geometry: 雪道几何 [[lon, lat], ...]
+            boundary: 边界多边形 [[lon, lat], ...]
+            
+        Returns:
+            True 如果雪道在边界内
+        """
+        if not trail_geometry or len(trail_geometry) < 2:
+            return False
+        
+        # 采样策略：检查起点、中点、终点和若干中间点
+        sample_points = []
+        
+        # 起点和终点
+        sample_points.append(trail_geometry[0])
+        sample_points.append(trail_geometry[-1])
+        
+        # 中点
+        mid_idx = len(trail_geometry) // 2
+        sample_points.append(trail_geometry[mid_idx])
+        
+        # 额外的采样点（每隔几个点采样一个）
+        step = max(1, len(trail_geometry) // 5)
+        for i in range(step, len(trail_geometry), step):
+            sample_points.append(trail_geometry[i])
+        
+        # 如果大部分采样点在边界内，则认为雪道在边界内
+        inside_count = sum(1 for point in sample_points if self._point_in_polygon(point, boundary))
+        
+        # 至少50%的采样点在边界内
+        return inside_count >= len(sample_points) * 0.5
+    
+    def _point_in_polygon(self, point: List[float], polygon: List[List[float]]) -> bool:
+        """
+        射线法判断点是否在多边形内
+        
+        Args:
+            point: 点 [lon, lat]
+            polygon: 多边形 [[lon, lat], ...]
+            
+        Returns:
+            True 如果点在多边形内
+        """
+        x, y = point[0], point[1]
+        n = len(polygon)
+        inside = False
+        
+        p1x, p1y = polygon[0]
+        for i in range(1, n + 1):
+            p2x, p2y = polygon[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        
+        return inside
     
     def _process_single_trail(self, element: Dict, center_lat: float, center_lon: float) -> Optional[Dict]:
         """处理单条雪道"""

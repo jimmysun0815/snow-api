@@ -25,6 +25,7 @@ class Resort(Base):
     lon = Column(Float)
     elevation_min = Column(Integer)
     elevation_max = Column(Integer)
+    boundary = Column(JSON)  # 雪场边界多边形坐标 [[lon, lat], ...]
     data_source = Column(String(50))
     source_url = Column(Text)
     source_id = Column(String(100))
@@ -106,8 +107,13 @@ class ResortWeather(Base):
     today_temp_max = Column(Float)
     today_temp_min = Column(Float)
     
+    # 按海拔的温度数据
+    temp_base = Column(Float)      # 山脚温度
+    temp_mid = Column(Float)       # 山腰温度
+    temp_summit = Column(Float)    # 山顶温度
+    
     # 预报数据 (JSON)
-    hourly_forecast = Column(JSON)  # 24小时预报
+    hourly_forecast = Column(JSON)  # 24小时预报（包含分层温度）
     forecast_7d = Column(JSON)  # 7天预报
     
     # 元数据
