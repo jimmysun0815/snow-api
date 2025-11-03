@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+                uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -90,14 +90,14 @@ jobs:
           echo "✅ Collector Lambda package built: collector-lambda.zip"
           ls -lh collector-lambda.zip
 
-      - name: Upload Lambda packages
-        uses: actions/upload-artifact@v3
-        with:
-          name: lambda-packages
-          path: |
-            api-lambda.zip
-            collector-lambda.zip
-          retention-days: 7
+              - name: Upload Lambda packages
+                uses: actions/upload-artifact@v4
+                with:
+                  name: lambda-packages
+                  path: |
+                    api-lambda.zip
+                    collector-lambda.zip
+                  retention-days: 7
 
   # 部署基础设施
   deploy-infrastructure:
@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Lambda packages
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: lambda-packages
           path: ./
@@ -169,7 +169,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Lambda packages
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: lambda-packages
           path: ./
