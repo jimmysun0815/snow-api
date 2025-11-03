@@ -6,12 +6,12 @@ AWS Lambda Handler
 """
 
 from api import app
-import awsgi
+import serverless_wsgi
 
 def lambda_handler(event, context):
     """
     Lambda 入口函数
-    使用 awsgi 将 Flask 请求转换为 Lambda 响应
+    使用 serverless-wsgi 将 Flask 请求转换为 Lambda 响应
     """
-    return awsgi.response(app, event, context)
+    return serverless_wsgi.handle_request(app, event, context)
 
