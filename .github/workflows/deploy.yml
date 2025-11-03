@@ -43,6 +43,7 @@ jobs:
           
           # 复制代码文件
           cp *.py package/
+          cp -r collectors package/
           
           # 创建部署包
           cd package
