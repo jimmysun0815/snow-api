@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-数据库管理器
-负责数据的存储、查询和缓存
-"""
+# Database Manager - Handles data storage, queries and caching
 
 import json
 import redis

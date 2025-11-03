@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-配置管理
-从环境变量或默认值加载配置
-"""
+# Configuration Management - Loads config from environment variables
 
 import os
 from dotenv import load_dotenv

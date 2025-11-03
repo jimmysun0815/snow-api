@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-REST API 服务
-提供雪场数据查询接口
-从 PostgreSQL + Redis 读取数据
-"""
+# REST API Service - Provides resort data query endpoints
+# Reads from PostgreSQL + Redis
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS

@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-数据库模型定义
-使用 SQLAlchemy ORM
-"""
+# Database Models - SQLAlchemy ORM definitions
 
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON, Text, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
