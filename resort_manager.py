@@ -6,6 +6,7 @@
 """
 
 import json
+import os
 from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
@@ -29,7 +30,10 @@ class ResortDataManager:
         """
         self.config_file = config_file
         self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(exist_ok=True)
+        # Only create directory if not in Lambda environment
+        if os.path.exists('/tmp') and not os.path.exists('/var/task'):
+            # Local environment
+            self.data_dir.mkdir(exist_ok=True)
         self.use_db = use_db
         
         # 加载配置
@@ -209,27 +213,31 @@ class ResortDataManager:
         
         filepath = self.data_dir / filename
         
-        # 添加元数据
-        output = {
-            'metadata': {
-                'timestamp': datetime.now().isoformat(),
-                'total_resorts': len(data),
-                'version': '1.0'
-            },
-            'resorts': data
-        }
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(output, f, indent=2, ensure_ascii=False)
-        
-        print(f"💾 数据已保存到: {filepath}")
-        
-        # 同时保存一份为 latest.json 供 API 使用
-        latest_path = self.data_dir / 'latest.json'
-        with open(latest_path, 'w', encoding='utf-8') as f:
-            json.dump(output, f, indent=2, ensure_ascii=False)
-        
-        print(f"💾 最新数据: {latest_path}")
+        # 只在非 Lambda 环境保存文件
+        if not os.path.exists('/var/task'):
+            # 添加元数据
+            output = {
+                'metadata': {
+                    'timestamp': datetime.now().isoformat(),
+                    'total_resorts': len(data),
+                    'version': '1.0'
+                },
+                'resorts': data
+            }
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+            
+            print(f"[OK] 数据已保存到: {filepath}")
+            
+            # 同时保存一份为 latest.json 供 API 使用
+            latest_path = self.data_dir / 'latest.json'
+            with open(latest_path, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+            
+            print(f"[OK] 最新数据: {latest_path}")
+        else:
+            print("[INFO] Lambda 环境，跳过文件保存，数据已存入数据库")
     
     def load_latest_data(self) -> Optional[Dict]:
         """
