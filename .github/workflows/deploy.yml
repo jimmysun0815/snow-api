@@ -57,23 +57,27 @@ jobs:
         run: |
           echo "📦 构建 Collector Lambda 部署包..."
           
+          # 确保 collectors 目录在 package 中
+          ls -la package/ | grep collectors || echo "Warning: collectors not found"
+          
           # 创建 collector handler
           cat > package/collector_handler.py << 'EOF'
           import os
           from collect_data import main as collect_data_main
 
           def lambda_handler(event, context):
-              """Lambda handler for data collection"""
-              print("🚀 开始采集雪场数据...")
+              print("[START] Starting data collection...")
               try:
                   collect_data_main()
-                  print("✅ 数据采集完成")
+                  print("[OK] Data collection completed")
                   return {
                       'statusCode': 200,
                       'body': 'Data collection completed successfully!'
                   }
               except Exception as e:
-                  print(f"❌ 数据采集失败: {e}")
+                  print(f"[ERROR] Data collection failed: {e}")
+                  import traceback
+                  traceback.print_exc()
                   return {
                       'statusCode': 500,
                       'body': f'Data collection failed: {e}'
@@ -87,6 +91,9 @@ jobs:
           
           echo "✅ Collector Lambda 包构建完成"
           ls -lh collector-lambda.zip
+          
+          # 验证包内容
+          unzip -l collector-lambda.zip | grep collectors || echo "Warning: collectors not in zip"
 
       - name: Deploy API Lambda
         run: |
