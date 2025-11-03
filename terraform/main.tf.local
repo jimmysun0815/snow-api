@@ -1,0 +1,27 @@
+terraform {
+  required_version = ">= 1.0"
+  
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+  
+  # 本地 Backend（用于测试/解决 TLS 证书问题）
+  # 注意：生产环境应使用 S3 backend
+}
+
+provider "aws" {
+  region  = var.aws_region
+  profile = "pp"  # AWS CLI profile 名称
+}
+
+# 获取当前账户信息
+data "aws_caller_identity" "current" {}
+
+# 获取可用区
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+

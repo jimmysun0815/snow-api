@@ -1,0 +1,51 @@
+# 优化方案：为 API Lambda 创建无 NAT 的私有子网
+# 这样可以节省一些数据传输费用（但 NAT Gateway 固定费用省不掉）
+
+# 无 NAT 的私有子网（仅用于 API Lambda）
+resource "aws_subnet" "private_no_nat" {
+  count             = 2
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.${count.index + 20}.0/24"
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+
+  tags = {
+    Name        = "${var.project_name}-private-no-nat-${count.index + 1}"
+    Environment = var.environment
+  }
+}
+
+# 无 NAT 的私有路由表（只能访问 VPC 内资源）
+resource "aws_route_table" "private_no_nat" {
+  vpc_id = aws_vpc.main.id
+
+  # 没有到 NAT Gateway 的路由，只能访问 VPC 内部
+
+  tags = {
+    Name        = "${var.project_name}-private-no-nat-rt"
+    Environment = var.environment
+  }
+}
+
+resource "aws_route_table_association" "private_no_nat" {
+  count          = 2
+  subnet_id      = aws_subnet.private_no_nat[count.index].id
+  route_table_id = aws_route_table.private_no_nat.id
+}
+
+# 修改 API Lambda 使用无 NAT 子网
+# 在 lambda.tf 中修改:
+# resource "aws_lambda_function" "api" {
+#   vpc_config {
+#     subnet_ids         = aws_subnet.private_no_nat[*].id  # 改这里
+#     security_group_ids = [aws_security_group.lambda.id]
+#   }
+# }
+
+# Collector Lambda 继续使用有 NAT 的子网
+# resource "aws_lambda_function" "collector" {
+#   vpc_config {
+#     subnet_ids         = aws_subnet.private[*].id  # 保持不变
+#     security_group_ids = [aws_security_group.lambda.id]
+#   }
+# }
+

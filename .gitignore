@@ -4,81 +4,51 @@ __pycache__/
 *$py.class
 *.so
 .Python
+*.egg-info/
+dist/
+build/
+*.egg
 
-# Virtual Environment
+# 虚拟环境
 venv/
 env/
 ENV/
-.venv
 
-# Environment Variables
-.env
-.env.local
-.env.*.local
+# 本地数据目录
+data/
+*.json
+!resorts_config.json
 
-# Database Data (Docker volumes)
-data/postgres/
-data/redis/
-data/trails/
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs
+# 日志文件
 *.log
-logs/
 api.log
 
-# IDEs
+# 环境变量
+.env
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.project
-.pydevproject
-.settings/
 
-# macOS
+# OS
 .DS_Store
-.AppleDouble
-.LSOverride
-._*
+Thumbs.db
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+.terraform/
+.terraform.lock.hcl
 
-# Distribution / Packaging
-build/
-dist/
-*.egg-info/
-*.egg
+# Lambda 部署包
+package/
+*.zip
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Process IDs
-*.pid
-.trail_server.pid
-
-# Temporary files
+# 临时文件
 *.tmp
 *.bak
-*.backup
-tmp/
-temp/
-
-# Docker
-docker-compose.override.yml
-
-# Redis dump
-dump.rdb
-
-# Editor backups
-*~
-*.swp
-*.swo
-

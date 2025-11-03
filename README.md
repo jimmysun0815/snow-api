@@ -1,236 +1,341 @@
-# ❄️ 雪场信息数据库系统
+# 🏔️ Resort Data Backend API
 
-自动化采集北美主要滑雪场的实时数据，提供统一的 REST API 接口。
+雪场数据采集和 REST API 服务
 
 ## 📁 项目结构
 
 ```
-resort-data/
-├── collectors/              # 采集器模块
-│   ├── __init__.py
-│   ├── base.py             # 采集器基类
-│   ├── mtnpowder.py        # MtnPowder API 采集器
-│   └── onthesnow.py        # OnTheSnow 网页采集器
-├── normalizer.py           # 数据标准化器
-├── resort_manager.py       # 雪场数据管理器
-├── collect_data.py         # 数据采集主程序
-├── api.py                  # REST API 服务
-├── resorts_config.json     # 雪场配置文件
-├── requirements.txt        # Python 依赖
-├── data/                   # 数据存储目录
-│   └── latest.json         # 最新数据
-└── README.md               # 本文件
+backend-api/
+├── .github/workflows/
+│   └── deploy.yml           # GitHub Actions 自动部署
+├── terraform/              # AWS 基础设施配置
+│   ├── main.tf
+│   ├── variables.tf
+│   └── ...
+├── *.py                    # Python 源代码
+│   ├── api.py              # Flask API
+│   ├── collect_data.py     # 数据采集
+│   ├── lambda_handler.py   # Lambda 入口
+│   └── ...
+└── requirements.txt        # Python 依赖
 ```
+
+---
 
 ## 🚀 快速开始
 
-### 1. 安装依赖
+### 本地开发
 
 ```bash
+# 1. 安装依赖
 pip install -r requirements.txt
-```
 
-### 2. 配置雪场列表
+# 2. 配置环境变量
+cp env.template .env
+vim .env
 
-编辑 `resorts_config.json`，添加或修改雪场配置：
+# 3. 初始化数据库
+python init_database.py
 
-```json
-{
-  "id": 1,
-  "name": "雪场名称",
-  "slug": "resort-slug",
-  "data_source": "onthesnow",
-  "source_url": "https://www.onthesnow.com/...",
-  "enabled": true
-}
-```
-
-### 3. 采集数据
-
-```bash
-# 采集所有已启用的雪场
+# 4. 采集数据
 python collect_data.py
 
-# 采集所有雪场（包括未启用的）
-python collect_data.py --all
-
-# 只采集指定 ID 的雪场
-python collect_data.py --resort-id 1
-```
-
-### 4. 启动 API 服务
-
-```bash
+# 5. 启动 API
 python api.py
 ```
 
-API 将在 `http://localhost:5000` 启动。
+访问: http://localhost:8000/api/resorts
 
-## 📡 API 接口
+---
 
-### 获取所有雪场
+## ☁️ AWS 自动部署
 
-```http
-GET /api/resorts
+### 首次部署
+
+1. **准备 AWS 账户**
+   - 创建 IAM 用户: `terraform-deployer`
+   - 获取访问密钥
+
+2. **创建 S3 Bucket** (存储 Terraform 状态)
+```bash
+aws s3 mb s3://resort-data-terraform-state --region us-west-2 --profile pp
 ```
 
-**响应示例：**
+3. **配置 GitHub Secrets**
+   
+   在 GitHub 仓库 Settings → Secrets 添加:
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_ACCOUNT_ID`
+   - `DB_PASSWORD`
 
-```json
-{
-  "metadata": {
-    "timestamp": "2025-10-28T13:00:00",
-    "total_resorts": 4
-  },
-  "resorts": [
-    {
-      "resort_id": 1,
-      "name": "Mammoth Mountain",
-      "status": "closed",
-      "new_snow": 0,
-      "lifts_open": 0,
-      "lifts_total": 24,
-      ...
-    }
-  ]
-}
-```
+4. **配置 Terraform**
+   ```bash
+   cd terraform
+   cp terraform.tfvars.example terraform.tfvars
+   vim terraform.tfvars  # 修改配置
+   ```
 
-### 获取单个雪场（by ID）
+5. **推送代码触发部署**
+   ```bash
+   git add .
+   git commit -m "Initial deployment"
+   git push origin main
+   ```
 
-```http
-GET /api/resorts/1
-```
+GitHub Actions 会自动:
+- ✅ 构建 Lambda 部署包
+- ✅ 创建 AWS 基础设施
+- ✅ 部署 API 和定时任务
 
-### 获取单个雪场（by slug）
+约 **15-20 分钟**完成！
 
-```http
-GET /api/resorts/slug/mammoth-mountain
-```
+---
 
-### 获取开放的雪场
+## 🔄 日常开发流程
 
-```http
-GET /api/resorts/open
-```
-
-### 查询附近的雪场
-
-```http
-GET /api/resorts/nearby?lat=50.1157&lon=-122.9485&radius=100
-```
-
-**参数：**
-- `lat`: 纬度
-- `lon`: 经度
-- `radius`: 半径（km，默认 100）
-
-### 获取系统状态
-
-```http
-GET /api/status
-```
-
-## 🗂️ 数据格式
-
-标准化后的雪场数据格式：
-
-```json
-{
-  "resort_id": 1,
-  "name": "Mammoth Mountain",
-  "location": "California, USA",
-  "lat": 37.6308,
-  "lon": -119.0326,
-  "status": "open|partial|closed",
-  "new_snow": 0,
-  "base_depth": 0,
-  "lifts_open": 0,
-  "lifts_total": 24,
-  "trails_open": 0,
-  "trails_total": 180,
-  "temperature": 15,
-  "last_update": "2025-10-28T13:00:00",
-  "source": "https://...",
-  "data_source": "mtnpowder|onthesnow"
-}
-```
-
-## 🔧 支持的数据源
-
-### 1. MtnPowder API
-
-- **适用雪场**: Mammoth Mountain 等
-- **数据质量**: ⭐⭐⭐⭐⭐
-- **更新频率**: 实时
-- **配置示例**:
-
-```json
-{
-  "data_source": "mtnpowder",
-  "source_id": "60"
-}
-```
-
-### 2. OnTheSnow 网页
-
-- **适用雪场**: 大部分北美雪场
-- **数据质量**: ⭐⭐⭐⭐
-- **更新频率**: 每日
-- **配置示例**:
-
-```json
-{
-  "data_source": "onthesnow",
-  "source_url": "https://www.onthesnow.com/..."
-}
-```
-
-## 📊 已验证的雪场
-
-| 雪场 | 位置 | 数据源 | 状态 |
-|------|------|--------|------|
-| Mammoth Mountain | California, USA | MtnPowder | ✅ |
-| Whistler Blackcomb | BC, Canada | OnTheSnow | ✅ |
-| Cypress Mountain | BC, Canada | OnTheSnow | ✅ |
-| Grouse Mountain | BC, Canada | OnTheSnow | ✅ |
-
-## 🔄 定时采集
-
-使用 cron 定时采集数据（建议每 3 小时）：
+修改代码后自动部署:
 
 ```bash
-# 编辑 crontab
-crontab -e
+# 1. 修改代码
+vim api.py
 
-# 添加定时任务（每 3 小时执行一次）
-0 */3 * * * cd /path/to/resort-data && python3 collect_data.py
+# 2. 提交推送
+git add .
+git commit -m "Update API"
+git push origin main
 ```
 
-## 📝 添加新雪场
+GitHub Actions 会自动部署到 AWS！约 **3-5 分钟**完成。
 
-1. 在 `resorts_config.json` 中添加配置
-2. 设置 `enabled: true`
-3. 运行采集测试: `python collect_data.py --resort-id <ID>`
-4. 验证数据格式正确
+---
 
-## ⚠️ 注意事项
+## 📡 API 端点
 
-1. **遵守爬虫礼仪**
-   - 请求间隔 ≥ 3 小时
-   - 设置合适的 User-Agent
-   - 遵守 robots.txt
+部署后的 API 地址: `https://{api-id}.execute-api.us-west-2.amazonaws.com/prod`
 
-2. **数据准确性**
-   - 非雪季数据可能不完整
-   - 建议多数据源交叉验证
+### 雪场数据
 
-3. **错误处理**
-   - 采集失败会自动跳过
-   - 查看日志排查问题
+```bash
+GET /api/resorts                    # 获取所有雪场
+GET /api/resorts/{id}              # 获取单个雪场
+GET /api/resorts/slug/{slug}       # 按 slug 获取
+GET /api/resorts/open              # 获取开放的雪场
+GET /api/resorts/search?q=万龙     # 搜索雪场
+GET /api/resorts/nearby?lat=&lon=  # 附近雪场
+```
 
-## 📄 许可证
+### 雪道数据
 
-本项目仅用于学习和研究目的。使用时请遵守相关网站的服务条款。
+```bash
+GET /api/resorts/{id}/trails       # 获取雪道 (by ID)
+GET /api/resorts/slug/{slug}/trails # 获取雪道 (by slug)
+```
 
+### 系统
 
+```bash
+GET /api/status                    # 系统状态
+```
+
+---
+
+## 🏗️ AWS 架构
+
+```
+┌──────────────────────────────────────────────┐
+│  GitHub Push                                 │
+└────────────┬─────────────────────────────────┘
+             ↓
+┌──────────────────────────────────────────────┐
+│  GitHub Actions                              │
+│  ├─ Build Lambda packages                   │
+│  ├─ Run Terraform                            │
+│  └─ Update Lambda functions                 │
+└────────────┬─────────────────────────────────┘
+             ↓
+┌──────────────────────────────────────────────┐
+│  AWS Infrastructure                          │
+│  ├─ API Gateway → Lambda API                │
+│  ├─ EventBridge → Lambda Collector (定时)   │
+│  ├─ RDS PostgreSQL (db.t4g.micro, 20GB)     │
+│  └─ ElastiCache Redis (cache.t4g.micro)     │
+└──────────────────────────────────────────────┘
+```
+
+**成本**: ~$60-65/月（包含 NAT Gateway）
+
+---
+
+## 📊 监控
+
+### 查看日志
+
+```bash
+# API Lambda 日志
+aws logs tail /aws/lambda/resort-data-api --follow
+
+# Collector Lambda 日志
+aws logs tail /aws/lambda/resort-data-collector --follow
+
+# API Gateway 日志
+aws logs tail /aws/apigateway/resort-data --follow
+```
+
+### 手动触发数据采集
+
+```bash
+aws lambda invoke \
+  --function-name resort-data-collector \
+  --region us-west-2 \
+  --profile pp \
+  response.json
+
+cat response.json
+```
+
+---
+
+## 🔧 常用命令
+
+### Terraform
+
+```bash
+cd terraform
+
+# 查看资源
+terraform show
+
+# 查看输出
+terraform output
+
+# 获取 API URL
+terraform output -raw api_gateway_url
+
+# 销毁资源 (慎重！)
+terraform destroy
+```
+
+### 本地测试
+
+```bash
+# 运行 API
+python api.py
+
+# 采集数据
+python collect_data.py
+
+# 采集雪道
+python collect_trails.py
+
+# 初始化数据库
+python init_database.py
+```
+
+---
+
+## 📝 环境变量
+
+### 本地开发 (.env)
+
+```bash
+# PostgreSQL
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5433
+POSTGRES_USER=app
+POSTGRES_PASSWORD=app
+POSTGRES_DB=snow
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6380
+REDIS_DB=0
+
+# 缓存
+CACHE_TTL=300
+
+# 采集间隔
+DATA_COLLECTION_INTERVAL=3600
+```
+
+### AWS Lambda (自动配置)
+
+Lambda 环境变量由 Terraform 自动配置:
+- `POSTGRES_HOST` - RDS 端点
+- `REDIS_HOST` - ElastiCache 端点
+- 其他配置...
+
+---
+
+## 🐛 故障排查
+
+### 部署失败
+
+查看 GitHub Actions 日志:
+- GitHub → Actions → 点击失败的 workflow
+
+### Lambda 超时
+
+增加 timeout:
+```hcl
+# terraform/variables.tf
+variable "lambda_timeout" {
+  default = 60  # 增加到 60 秒
+}
+```
+
+### 数据库连接失败
+
+检查安全组和 VPC 配置:
+```bash
+aws ec2 describe-security-groups --group-ids sg-xxxxx
+aws lambda get-function-configuration --function-name resort-data-api
+```
+
+---
+
+## 📚 文档
+
+- [完整部署指南](../DEPLOYMENT.md)
+- [部署检查清单](../DEPLOYMENT_CHECKLIST.md)
+- [Terraform 配置](terraform/README.md)
+
+---
+
+## 💰 成本详情
+
+**月成本: ~$60-65**
+
+### 成本构成
+- **NAT Gateway**: ~$32/月（必需，用于 Collector 访问外网）
+- **RDS PostgreSQL** (db.t4g.micro): ~$15/月
+- **ElastiCache Redis** (cache.t4g.micro): ~$12/月
+- **Lambda + API Gateway**: ~$1-3/月
+- **数据传输**: ~$2-3/月
+
+### 💡 优化建议
+1. ✅ **降低采集频率到每6小时**: 节省 ~$2-3/月（已默认配置）
+2. **购买 RDS Reserved Instance**: 节省 ~$5/月
+3. **移除 NAT Gateway**: 不推荐（安全风险大）
+
+### 关于 NAT Gateway
+NAT Gateway 是必需的，因为:
+- Collector Lambda 需要访问外部网站抓取雪场数据
+- RDS 和 Redis 在 VPC 私有子网（安全最佳实践）
+- $32/月是安全架构的合理成本
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Pull Request！
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+**有问题？查看日志或联系团队！** 🚀
