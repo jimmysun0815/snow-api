@@ -196,14 +196,14 @@ if __name__ == '__main__':
     from config import Config
     
     print("=" * 80)
-    print("🗄️  数据库初始化")
+    print("[DB]  数据库初始化")
     print("=" * 80)
     print(f"连接: {Config.DATABASE_URL}")
     print()
     
     try:
         engine = init_db(Config.DATABASE_URL)
-        print("✅ 数据库表创建成功!")
+        print("[OK] 数据库表创建成功!")
         print()
         print("创建的表:")
         for table in Base.metadata.tables:
@@ -211,6 +211,6 @@ if __name__ == '__main__':
         print()
         print("=" * 80)
     except Exception as e:
-        print(f"❌ 错误: {e}")
+        print(f"[ERROR] 错误: {e}")
         print("=" * 80)
 

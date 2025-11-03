@@ -13,7 +13,7 @@ def lambda_handler(event, context):
     """Lambda handler for database initialization"""
     
     print("=" * 80)
-    print("🗄️  开始初始化 AWS RDS 数据库")
+    print("[DB]  开始初始化 AWS RDS 数据库")
     print("=" * 80)
     
     # 显示配置
@@ -28,7 +28,7 @@ def lambda_handler(event, context):
     print()
     
     # 1. 创建表
-    print("📝 创建数据库表...")
+    print("[INFO] 创建数据库表...")
     try:
         # 构建数据库 URL
         db_url = (
@@ -40,13 +40,13 @@ def lambda_handler(event, context):
         engine = init_db(db_url)
         
         created_tables = list(Base.metadata.tables.keys())
-        print(f"✅ 成功创建 {len(created_tables)} 个表:")
+        print(f"[OK] 成功创建 {len(created_tables)} 个表:")
         for table in created_tables:
             print(f"  • {table}")
         print()
         
     except Exception as e:
-        error_msg = f"❌ 创建表失败: {str(e)}"
+        error_msg = f"[ERROR] 创建表失败: {str(e)}"
         print(error_msg)
         return {
             'statusCode': 500,
@@ -55,25 +55,25 @@ def lambda_handler(event, context):
     
     # 2. 测试连接
     print("=" * 80)
-    print("🔍 测试数据库连接...")
+    print("[CHECK] 测试数据库连接...")
     print()
     
     try:
         db_manager = DatabaseManager()
-        print("✅ PostgreSQL 连接成功")
-        print("✅ Redis 连接成功")
+        print("[OK] PostgreSQL 连接成功")
+        print("[OK] Redis 连接成功")
         print()
         
         # 测试查询
         resorts = db_manager.get_all_resorts_data()
         resort_count = len(resorts)
-        print(f"📊 当前数据库中有 {resort_count} 个雪场数据")
+        print(f"[DATA] 当前数据库中有 {resort_count} 个雪场数据")
         print()
         
         db_manager.close()
         
     except Exception as e:
-        error_msg = f"❌ 连接测试失败: {str(e)}"
+        error_msg = f"[ERROR] 连接测试失败: {str(e)}"
         print(error_msg)
         return {
             'statusCode': 500,
@@ -81,7 +81,7 @@ def lambda_handler(event, context):
         }
     
     print("=" * 80)
-    print("✅ 数据库初始化完成！")
+    print("[OK] 数据库初始化完成！")
     print("=" * 80)
     print()
     print("下一步:")
@@ -97,6 +97,6 @@ def lambda_handler(event, context):
 
 if __name__ == '__main__':
     # 本地测试
-    print("⚠️  本地测试模式 - 请确保已设置环境变量")
+    print("[WARNING]  本地测试模式 - 请确保已设置环境变量")
     lambda_handler({}, {})
 

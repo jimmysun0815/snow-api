@@ -47,7 +47,7 @@ def main():
     # 加载配置
     config_file = Path(args.config)
     if not config_file.exists():
-        print(f"❌ 错误: 找不到配置文件 {args.config}")
+        print(f"[ERROR] 错误: 找不到配置文件 {args.config}")
         return
     
     with open(config_file, 'r', encoding='utf-8') as f:
@@ -59,12 +59,12 @@ def main():
     if args.resort_id:
         resorts = [r for r in resorts if r.get('id') == args.resort_id]
         if not resorts:
-            print(f"❌ 错误: 找不到 ID 为 {args.resort_id} 的雪场")
+            print(f"[ERROR] 错误: 找不到 ID 为 {args.resort_id} 的雪场")
             return
     elif args.resort_slug:
         resorts = [r for r in resorts if r.get('slug') == args.resort_slug]
         if not resorts:
-            print(f"❌ 错误: 找不到 slug 为 {args.resort_slug} 的雪场")
+            print(f"[ERROR] 错误: 找不到 slug 为 {args.resort_slug} 的雪场")
             return
     else:
         # 只采集启用的雪场
@@ -81,7 +81,7 @@ def main():
     try:
         db_manager = DatabaseManager()
     except Exception as e:
-        print(f"❌ 数据库连接失败: {e}")
+        print(f"[ERROR] 数据库连接失败: {e}")
         return
     
     # 采集数据
@@ -125,20 +125,20 @@ def main():
                     success = db_manager.save_trails_data(resort_config, trails_data)
                     
                     if success:
-                        print(f"   ✅ 成功 - {total_trails} 条雪道")
+                        print(f"   [OK] 成功 - {total_trails} 条雪道")
                         success_count += 1
                     else:
-                        print(f"   ⚠️  采集成功但保存失败 - {total_trails} 条雪道")
+                        print(f"   [WARNING]  采集成功但保存失败 - {total_trails} 条雪道")
                         fail_count += 1
                 else:
-                    print(f"   ⚠️  未找到雪道数据")
+                    print(f"   [WARNING]  未找到雪道数据")
                     fail_count += 1
             else:
-                print(f"   ❌ 采集失败")
+                print(f"   [ERROR] 采集失败")
                 fail_count += 1
                 
         except Exception as e:
-            print(f"   ❌ 错误: {str(e)[:100]}")
+            print(f"   [ERROR] 错误: {str(e)[:100]}")
             fail_count += 1
         
         print()
@@ -151,7 +151,7 @@ def main():
     
     # 总结
     print("=" * 80)
-    print(f"✅ 采集完成!")
+    print(f"[OK] 采集完成!")
     print(f"   成功: {success_count} 个雪场")
     print(f"   失败: {fail_count} 个雪场")
     print("=" * 80)

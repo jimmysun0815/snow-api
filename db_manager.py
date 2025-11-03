@@ -31,8 +31,8 @@ class DatabaseManager:
         self.redis_client = redis.from_url(Config.REDIS_URL, decode_responses=True)
         self.cache_ttl = Config.CACHE_TTL
         
-        print(f"✅ 数据库连接成功: {Config.POSTGRES_HOST}:{Config.POSTGRES_PORT}/{Config.POSTGRES_DB}")
-        print(f"✅ Redis 连接成功: {Config.REDIS_HOST}:{Config.REDIS_PORT}")
+        print(f"[OK] 数据库连接成功: {Config.POSTGRES_HOST}:{Config.POSTGRES_PORT}/{Config.POSTGRES_DB}")
+        print(f"[OK] Redis 连接成功: {Config.REDIS_HOST}:{Config.REDIS_PORT}")
     
     def save_resort_data(self, resort_config: Dict, normalized_data: Dict):
         """
@@ -129,7 +129,7 @@ class DatabaseManager:
             
         except Exception as e:
             self.session.rollback()
-            print(f"❌ 保存数据失败 ({resort_config['name']}): {e}")
+            print(f"[ERROR] 保存数据失败 ({resort_config['name']}): {e}")
             return False
     
     def get_latest_resort_data(self, resort_id: int = None, resort_slug: str = None) -> Optional[Dict]:
@@ -149,7 +149,7 @@ class DatabaseManager:
         # 1. 尝试从 Redis 获取
         cached = self.redis_client.get(cache_key)
         if cached:
-            print(f"✅ 从缓存获取: {cache_key}")
+            print(f"[OK] 从缓存获取: {cache_key}")
             return json.loads(cached)
         
         # 2. 从数据库查询
@@ -247,11 +247,11 @@ class DatabaseManager:
                 json.dumps(data, ensure_ascii=False)
             )
             
-            print(f"📊 从数据库获取并缓存: {resort.name}")
+            print(f"[DATA] 从数据库获取并缓存: {resort.name}")
             return data
             
         except Exception as e:
-            print(f"❌ 查询数据失败: {e}")
+            print(f"[ERROR] 查询数据失败: {e}")
             return None
     
     def get_all_resorts_data(self) -> List[Dict]:
@@ -266,7 +266,7 @@ class DatabaseManager:
         # 1. 尝试从 Redis 获取
         cached = self.redis_client.get(cache_key)
         if cached:
-            print("✅ 从缓存获取所有雪场数据")
+            print("[OK] 从缓存获取所有雪场数据")
             return json.loads(cached)
         
         # 2. 从数据库查询
@@ -286,11 +286,11 @@ class DatabaseManager:
                 json.dumps(data_list, ensure_ascii=False)
             )
             
-            print(f"📊 从数据库获取 {len(data_list)} 个雪场数据并缓存")
+            print(f"[DATA] 从数据库获取 {len(data_list)} 个雪场数据并缓存")
             return data_list
             
         except Exception as e:
-            print(f"❌ 查询所有雪场数据失败: {e}")
+            print(f"[ERROR] 查询所有雪场数据失败: {e}")
             return []
     
     def save_trails_data(self, resort_config: Dict, trails_data: Dict) -> bool:
@@ -313,7 +313,7 @@ class DatabaseManager:
                 resort = self.session.query(Resort).filter_by(id=resort_id).first()
                 if resort:
                     resort.boundary = boundary
-                    print(f"✅ 保存边界数据 ({len(boundary)} 个点)")
+                    print(f"[OK] 保存边界数据 ({len(boundary)} 个点)")
             
             # 2. 删除该雪场的旧雪道数据
             self.session.query(ResortTrail).filter_by(resort_id=resort_id).delete()
@@ -344,12 +344,12 @@ class DatabaseManager:
             # 5. 清除缓存
             self._invalidate_trails_cache(resort_id, resort_config['slug'])
             
-            print(f"✅ 保存 {len(trails)} 条雪道数据")
+            print(f"[OK] 保存 {len(trails)} 条雪道数据")
             return True
             
         except Exception as e:
             self.session.rollback()
-            print(f"❌ 保存雪道数据失败: {e}")
+            print(f"[ERROR] 保存雪道数据失败: {e}")
             return False
     
     def get_resort_trails(self, resort_id: int = None, resort_slug: str = None) -> List[Dict]:
@@ -369,7 +369,7 @@ class DatabaseManager:
         # 1. 尝试从 Redis 获取
         cached = self.redis_client.get(cache_key)
         if cached:
-            print(f"✅ 从缓存获取雪道: {cache_key}")
+            print(f"[OK] 从缓存获取雪道: {cache_key}")
             return json.loads(cached)
         
         # 2. 从数据库查询
@@ -413,11 +413,11 @@ class DatabaseManager:
                 json.dumps(trails_data, ensure_ascii=False)
             )
             
-            print(f"📊 从数据库获取 {len(trails_data)} 条雪道并缓存")
+            print(f"[DATA] 从数据库获取 {len(trails_data)} 条雪道并缓存")
             return trails_data
             
         except Exception as e:
-            print(f"❌ 查询雪道数据失败: {e}")
+            print(f"[ERROR] 查询雪道数据失败: {e}")
             return []
     
     def _invalidate_cache(self, resort_id: int, resort_slug: str):

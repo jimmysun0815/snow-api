@@ -40,9 +40,9 @@ class ResortDataManager:
         if self.use_db:
             try:
                 self.db_manager = DatabaseManager()
-                print("✅ 数据库管理器初始化成功")
+                print("[OK] 数据库管理器初始化成功")
             except Exception as e:
-                print(f"⚠️  数据库连接失败，将只保存到 JSON 文件: {e}")
+                print(f"[WARNING]  数据库连接失败，将只保存到 JSON 文件: {e}")
                 self.use_db = False
                 self.db_manager = None
         else:
@@ -176,16 +176,16 @@ class ResortDataManager:
                     if self.use_db and self.db_manager:
                         success = self.db_manager.save_resort_data(resort_config, data)
                         if success:
-                            print(f"   ✅ 成功（已存入数据库）")
+                            print(f"   [OK] 成功（已存入数据库）")
                         else:
-                            print(f"   ✅ 成功（数据库保存失败，仅保存到文件）")
+                            print(f"   [OK] 成功（数据库保存失败，仅保存到文件）")
                     else:
-                        print(f"   ✅ 成功")
+                        print(f"   [OK] 成功")
                 else:
-                    print(f"   ❌ 失败")
+                    print(f"   [ERROR] 失败")
                     
             except Exception as e:
-                print(f"   ❌ 错误: {e}")
+                print(f"   [ERROR] 错误: {e}")
             
             print()
         

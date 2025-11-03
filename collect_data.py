@@ -48,7 +48,7 @@ def main():
                 break
         
         if not resort_config:
-            print(f"❌ 错误: 找不到 ID 为 {args.resort_id} 的雪场")
+            print(f"[ERROR] 错误: 找不到 ID 为 {args.resort_id} 的雪场")
             return
         
         print(f"采集单个雪场: {resort_config.get('name')}")
@@ -58,9 +58,9 @@ def main():
         
         if data:
             manager.save_data([data])
-            print("\n✅ 采集成功！")
+            print("\n[OK] 采集成功！")
         else:
-            print("\n❌ 采集失败")
+            print("\n[ERROR] 采集失败")
         
         return
     
@@ -70,9 +70,9 @@ def main():
     
     if results:
         manager.save_data(results)
-        print("✅ 采集完成！")
+        print("[OK] 采集完成！")
     else:
-        print("❌ 没有采集到任何数据")
+        print("[ERROR] 没有采集到任何数据")
 
 
 if __name__ == '__main__':

@@ -18,9 +18,9 @@ CORS(app)  # 启用 CORS，允许跨域请求
 # 初始化数据库管理器
 try:
     db_manager = DatabaseManager()
-    print("✅ API 使用数据库模式（PostgreSQL + Redis 缓存）")
+    print("[OK] API 使用数据库模式（PostgreSQL + Redis 缓存）")
 except Exception as e:
-    print(f"❌ 数据库连接失败: {e}")
+    print(f"[ERROR] 数据库连接失败: {e}")
     db_manager = None
 
 
@@ -327,7 +327,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
 if __name__ == '__main__':
     print("\n" + "=" * 80)
-    print("🚀 Flask API 服务已启动")
+    print("[START] Flask API 服务已启动")
     print("=" * 80)
     print("  API 地址: http://localhost:8000")
     print("  数据源: PostgreSQL + Redis 缓存")
