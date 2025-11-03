@@ -48,53 +48,71 @@ python api.py
 
 ---
 
-## ☁️ AWS 自动部署
+## ☁️ AWS 部署
+
+### 架构说明
+
+```
+┌─────────────────────────────────────────┐
+│  Terraform (手动运行 - 只在架构变更时)    │
+│  管理: RDS, Redis, VPC, IAM, DNS, 等    │
+│  频率: 很少                              │
+└─────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────┐
+│  GitHub Actions (自动运行)               │
+│  管理: Lambda 代码更新                   │
+│  频率: 每次代码提交 (~10秒)              │
+└─────────────────────────────────────────┘
+```
 
 ### 首次部署
 
-1. **准备 AWS 账户**
-   - 创建 IAM 用户: `terraform-deployer`
-   - 获取访问密钥
+#### 1. 配置 GitHub Secrets
+   
+在 GitHub 仓库 Settings → Secrets 添加:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
 
-2. **创建 S3 Bucket** (存储 Terraform 状态)
+#### 2. 部署基础设施（Terraform）
+
 ```bash
-aws s3 mb s3://resort-data-terraform-state --region us-west-2 --profile pp
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+vim terraform.tfvars  # 设置密码和 AWS profile
+
+terraform init
+terraform plan
+terraform apply
 ```
 
-3. **配置 GitHub Secrets**
-   
-   在 GitHub 仓库 Settings → Secrets 添加:
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-   - `AWS_ACCOUNT_ID`
-   - `DB_PASSWORD`
+**预计时间**: 15-20 分钟
 
-4. **配置 Terraform**
-   ```bash
-   cd terraform
-   cp terraform.tfvars.example terraform.tfvars
-   vim terraform.tfvars  # 修改配置
-   ```
+#### 3. 初始化数据库
 
-5. **推送代码触发部署**
-   ```bash
-   git add .
-   git commit -m "Initial deployment"
-   git push origin main
-   ```
+```bash
+aws lambda invoke \
+  --function-name resort-data-collector \
+  --region us-west-2 \
+  --profile pp \
+  response.json
+```
 
-GitHub Actions 会自动:
-- ✅ 构建 Lambda 部署包
-- ✅ 创建 AWS 基础设施
-- ✅ 部署 API 和定时任务
+#### 4. 推送代码（触发自动部署）
 
-约 **15-20 分钟**完成！
+```bash
+git add .
+git commit -m "Initial code deployment"
+git push origin main
+```
+
+GitHub Actions 会自动更新 Lambda 代码（~10秒）
 
 ---
 
 ## 🔄 日常开发流程
 
-修改代码后自动部署:
+修改代码后，**只需要推送**：
 
 ```bash
 # 1. 修改代码
@@ -106,7 +124,20 @@ git commit -m "Update API"
 git push origin main
 ```
 
-GitHub Actions 会自动部署到 AWS！约 **3-5 分钟**完成。
+GitHub Actions 会自动更新 Lambda！约 **10 秒**完成。
+
+### 修改基础设施
+
+只在以下情况运行 Terraform：
+- 修改数据库/Redis 配置
+- 修改 Lambda 配置（内存、超时、环境变量）
+- 修改 VPC/网络配置
+
+```bash
+cd terraform
+vim terraform.tfvars  # 修改配置
+terraform apply
+```
 
 ---
 

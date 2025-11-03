@@ -1,24 +1,21 @@
-name: Deploy to AWS
+name: Deploy Lambda Functions
 
 on:
   push:
     branches:
-      - main  # 推送到 main 分支时触发
+      - main
     paths:
       - '**/*.py'
       - 'requirements.txt'
-      - 'terraform/**'
-      - '.github/workflows/**'
-  workflow_dispatch:  # 允许手动触发
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-west-2
-  TERRAFORM_VERSION: 1.6.0
 
 jobs:
-  # 构建 Lambda 部署包
-  build-lambda:
-    name: Build Lambda Packages
+  deploy:
+    name: Build and Deploy Lambda Functions
     runs-on: ubuntu-latest
     
     steps:
@@ -28,13 +25,21 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Build API Lambda package
         run: |
+          echo "📦 构建 API Lambda 部署包..."
+          
           # 安装依赖
           pip install -r requirements.txt -t package/
-          pip install awsgi -t package/
           
           # 复制代码文件
           cp *.py package/
@@ -44,178 +49,82 @@ jobs:
           zip -r ../api-lambda.zip .
           cd ..
           
-          echo "✅ API Lambda package built: api-lambda.zip"
+          echo "✅ API Lambda 包构建完成"
           ls -lh api-lambda.zip
 
       - name: Build Collector Lambda package
         run: |
-          # 使用相同的 package (已有依赖)
-          cd package
+          echo "📦 构建 Collector Lambda 部署包..."
           
           # 创建 collector handler
-          cat > collector_handler.py << 'EOF'
-          #!/usr/bin/env python3
-          import json
+          cat > package/collector_handler.py << 'EOF'
+          import os
           from collect_data import main as collect_data_main
 
           def lambda_handler(event, context):
-              """
-              Lambda 入口函数 - 数据采集
-              """
+              """Lambda handler for data collection"""
+              print("🚀 开始采集雪场数据...")
               try:
-                  print("🚀 开始数据采集...")
                   collect_data_main()
                   print("✅ 数据采集完成")
-                  
                   return {
                       'statusCode': 200,
-                      'body': json.dumps({
-                          'message': 'Data collection completed successfully'
-                      })
+                      'body': 'Data collection completed successfully!'
                   }
               except Exception as e:
                   print(f"❌ 数据采集失败: {e}")
                   return {
                       'statusCode': 500,
-                      'body': json.dumps({
-                          'error': str(e)
-                      })
+                      'body': f'Data collection failed: {e}'
                   }
           EOF
           
           # 创建部署包
+          cd package
           zip -r ../collector-lambda.zip .
           cd ..
           
-          echo "✅ Collector Lambda package built: collector-lambda.zip"
+          echo "✅ Collector Lambda 包构建完成"
           ls -lh collector-lambda.zip
 
-      - name: Upload Lambda packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: lambda-packages
-          path: |
-            api-lambda.zip
-            collector-lambda.zip
-          retention-days: 7
-
-  # 部署基础设施
-  deploy-infrastructure:
-    name: Deploy Infrastructure
-    runs-on: ubuntu-latest
-    needs: build-lambda
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download Lambda packages
-        uses: actions/download-artifact@v4
-        with:
-          name: lambda-packages
-          path: ./
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Terraform Init
-        working-directory: terraform
-        run: terraform init
-
-      - name: Terraform Plan
-        working-directory: terraform
+      - name: Deploy API Lambda
         run: |
-          terraform plan \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="aws_profile=" \
-            -out=tfplan
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        working-directory: terraform
-        run: terraform apply -auto-approve tfplan
-
-      - name: Get Terraform Outputs
-        working-directory: terraform
-        run: |
-          echo "📡 API Gateway URL:"
-          terraform output -raw api_gateway_url || echo "N/A"
+          echo "🚀 部署 API Lambda 函数..."
           
-          echo ""
-          echo "🗄️ RDS Address:"
-          terraform output -raw rds_address || echo "N/A"
-          
-          echo ""
-          echo "📦 Lambda Functions:"
-          terraform output -raw lambda_api_function_name || echo "N/A"
-          terraform output -raw lambda_collector_function_name || echo "N/A"
-
-  # 上传 Lambda 代码到 S3 并更新函数
-  update-lambda:
-    name: Update Lambda Functions
-    runs-on: ubuntu-latest
-    needs: [build-lambda, deploy-infrastructure]
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download Lambda packages
-        uses: actions/download-artifact@v4
-        with:
-          name: lambda-packages
-          path: ./
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Upload Lambda packages to S3
-        run: |
-          BUCKET_NAME="resort-data-lambda-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
-          
-          echo "📦 上传 API Lambda 包..."
-          aws s3 cp api-lambda.zip s3://$BUCKET_NAME/api-lambda.zip
-          
-          echo "📦 上传 Collector Lambda 包..."
-          aws s3 cp collector-lambda.zip s3://$BUCKET_NAME/collector-lambda.zip
-          
-          echo "✅ Lambda 包上传完成"
-
-      - name: Update Lambda functions
-        run: |
-          echo "🔄 更新 API Lambda 函数..."
           aws lambda update-function-code \
             --function-name resort-data-api \
-            --s3-bucket resort-data-lambda-artifacts-${{ secrets.AWS_ACCOUNT_ID }} \
-            --s3-key api-lambda.zip \
+            --zip-file fileb://api-lambda.zip \
             --region ${{ env.AWS_REGION }}
           
-          echo "🔄 更新 Collector Lambda 函数..."
+          echo "✅ API Lambda 部署成功"
+
+      - name: Deploy Collector Lambda
+        run: |
+          echo "🚀 部署 Collector Lambda 函数..."
+          
           aws lambda update-function-code \
             --function-name resort-data-collector \
-            --s3-bucket resort-data-lambda-artifacts-${{ secrets.AWS_ACCOUNT_ID }} \
-            --s3-key collector-lambda.zip \
+            --zip-file fileb://collector-lambda.zip \
             --region ${{ env.AWS_REGION }}
           
-          echo "✅ Lambda 函数更新完成"
+          echo "✅ Collector Lambda 部署成功"
 
-      - name: Wait for Lambda updates
+      - name: Deployment Summary
         run: |
-          echo "⏳ 等待 Lambda 函数更新..."
-          sleep 30
-          
-          echo "✅ 部署完成！"
-
+          echo ""
+          echo "═══════════════════════════════════════"
+          echo "✅ Lambda 函数部署完成！"
+          echo "═══════════════════════════════════════"
+          echo ""
+          echo "📡 API 访问地址:"
+          echo "   https://api.steponsnow.com/api/resorts"
+          echo ""
+          echo "🔧 验证部署:"
+          echo "   curl https://api.steponsnow.com/api/status"
+          echo ""
+          echo "📊 查看日志:"
+          echo "   AWS Console → CloudWatch Logs"
+          echo "   - /aws/lambda/resort-data-api"
+          echo "   - /aws/lambda/resort-data-collector"
+          echo ""
+          echo "═══════════════════════════════════════"
