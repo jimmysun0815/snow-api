@@ -92,3 +92,10 @@ variable "domain_name" {
   default     = "steponsnow.com"
 }
 
+# AWS Profile (本地用，GitHub Actions 留空)
+variable "aws_profile" {
+  description = "AWS CLI profile 名称 (本地开发用，CI/CD 留空)"
+  type        = string
+  default     = ""
+}
+

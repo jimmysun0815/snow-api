@@ -20,7 +20,7 @@ terraform {
 
 provider "aws" {
   region  = var.aws_region
-  profile = "pp"  # AWS CLI profile 名称
+  profile = var.aws_profile != "" ? var.aws_profile : null
 }
 
 # 获取当前账户信息

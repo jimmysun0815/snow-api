@@ -136,6 +136,7 @@ jobs:
         run: |
           terraform plan \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="aws_profile=" \
             -out=tfplan
 
       - name: Terraform Apply

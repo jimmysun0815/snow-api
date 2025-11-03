@@ -32,3 +32,6 @@ data_collection_schedule = "cron(0 * * * ? *)"  # 每小时执行一次
 # 自定义域名配置
 domain_name = "yourdomain.com"  # 已在 Route53 托管的域名
 
+# AWS Profile (本地开发用，GitHub Actions 留空)
+aws_profile = "default"  # 本地 AWS CLI profile，CI/CD 自动使用 Secrets
+
