@@ -181,12 +181,27 @@ jobs:
             --region ${{ env.AWS_REGION }}
           
           echo "✅ Snow Checker Lambda 部署成功"
+          echo "⏳ 等待 Lambda 更新完成..."
+          sleep 10
 
       - name: Update Lambda Environment Variables
         run: |
           echo "🔧 更新 Lambda 环境变量（Firebase 配置）..."
           
+          # 等待所有 Lambda 函数更新完成
+          echo "⏳ 等待所有 Lambda 函数就绪..."
+          aws lambda wait function-updated \
+            --function-name resort-data-notification-handler \
+            --region ${{ env.AWS_REGION }} || true
+          
+          aws lambda wait function-updated \
+            --function-name resort-data-snow-checker \
+            --region ${{ env.AWS_REGION }} || true
+          
+          echo "✅ 所有 Lambda 函数已就绪"
+          
           # 更新 Notification Handler 环境变量
+          echo "🔧 更新 Notification Handler 环境变量..."
           aws lambda update-function-configuration \
             --function-name resort-data-notification-handler \
             --environment "Variables={
@@ -204,7 +219,12 @@ jobs:
             }" \
             --region ${{ env.AWS_REGION }}
           
+          echo "✅ Notification Handler 环境变量更新完成"
+          echo "⏳ 等待更新完成..."
+          sleep 5
+          
           # 更新 Snow Checker 环境变量
+          echo "🔧 更新 Snow Checker 环境变量..."
           aws lambda update-function-configuration \
             --function-name resort-data-snow-checker \
             --environment "Variables={
@@ -222,7 +242,7 @@ jobs:
             }" \
             --region ${{ env.AWS_REGION }}
           
-          echo "✅ 环境变量更新成功"
+          echo "✅ 所有环境变量更新成功"
 
       - name: Deployment Summary
         run: |
