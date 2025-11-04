@@ -92,6 +92,40 @@ variable "domain_name" {
   default     = "steponsnow.com"
 }
 
+# Firebase 配置 (用于推送通知)
+variable "firebase_project_id" {
+  description = "Firebase Project ID"
+  type        = string
+  default     = ""
+}
+
+variable "firebase_private_key_id" {
+  description = "Firebase Private Key ID"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "firebase_private_key" {
+  description = "Firebase Private Key"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "firebase_client_email" {
+  description = "Firebase Client Email"
+  type        = string
+  default     = ""
+}
+
+variable "firebase_client_id" {
+  description = "Firebase Client ID"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # AWS Profile (本地用，GitHub Actions 留空)
 variable "aws_profile" {
   description = "AWS CLI profile 名称 (本地开发用，CI/CD 留空)"

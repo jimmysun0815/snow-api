@@ -31,6 +31,18 @@ resource "aws_security_group" "rds" {
     security_groups = [aws_security_group.lambda.id]
   }
 
+  # 临时：允许私有子网访问（用于过渡期间）
+  ingress {
+    description = "PostgreSQL from private subnets"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [
+      "10.0.10.0/24",  # private subnet 1
+      "10.0.11.0/24"   # private subnet 2
+    ]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -56,6 +68,18 @@ resource "aws_security_group" "redis" {
     to_port         = 6379
     protocol        = "tcp"
     security_groups = [aws_security_group.lambda.id]
+  }
+
+  # 临时：允许私有子网访问（用于过渡期间）
+  ingress {
+    description = "Redis from private subnets"
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = [
+      "10.0.10.0/24",  # private subnet 1
+      "10.0.11.0/24"   # private subnet 2
+    ]
   }
 
   egress {
