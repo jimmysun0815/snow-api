@@ -45,7 +45,6 @@ jobs:
           cp *.py package/
           cp *.json package/
           cp -r collectors package/
-          cp -r init_package package/
           
           # 创建部署包
           cd package
