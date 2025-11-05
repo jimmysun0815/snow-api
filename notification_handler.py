@@ -7,8 +7,7 @@ Processes push notification queue and sends via Firebase
 
 import os
 import json
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import requests
 from push_service import (
     send_push_notification,
     get_user_tokens,
@@ -17,90 +16,101 @@ from push_service import (
 
 
 def process_notification_queue():
-    """Process pending notifications in the queue"""
-    # Connect to Supabase (where user data and notification queue are stored)
-    conn = psycopg2.connect(
-        host=os.environ.get('SUPABASE_DB_HOST', os.environ.get('DB_HOST')),
-        database=os.environ.get('SUPABASE_DB_NAME', os.environ.get('DB_NAME', 'postgres')),
-        user=os.environ.get('SUPABASE_DB_USER', os.environ.get('DB_USER', 'postgres')),
-        password=os.environ.get('SUPABASE_DB_PASSWORD', os.environ.get('DB_PASSWORD')),
-        port=os.environ.get('SUPABASE_DB_PORT', '5432'),
+    """Process pending notifications in the queue using Supabase REST API"""
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
+    
+    headers = {
+        'apikey': supabase_key,
+        'Authorization': f'Bearer {supabase_key}',
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+    }
+    
+    # Get pending notifications (limit 100 per run)
+    response = requests.get(
+        f'{supabase_url}/rest/v1/push_notification_queue',
+        headers=headers,
+        params={
+            'status': 'eq.pending',
+            'order': 'created_at.asc',
+            'limit': 100
+        }
     )
+    response.raise_for_status()
+    notifications = response.json()
     
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Get pending notifications (limit 100 per run)
-            cur.execute("""
-                SELECT id, user_id, notification_type, title, body, data
-                FROM push_notification_queue
-                WHERE status = 'pending'
-                ORDER BY created_at ASC
-                LIMIT 100
-            """)
-            
-            notifications = cur.fetchall()
-            print(f"Found {len(notifications)} pending notifications")
-            
-            for notif in notifications:
-                try:
-                    # Get user tokens
-                    tokens = get_user_tokens(notif['user_id'])
-                    
-                    if not tokens:
-                        print(f"No tokens found for user {notif['user_id']}")
-                        # Mark as failed
-                        cur.execute("""
-                            UPDATE push_notification_queue
-                            SET status = 'failed',
-                                error_message = 'No FCM tokens found',
-                                sent_at = NOW()
-                            WHERE id = %s
-                        """, (notif['id'],))
-                        continue
-                    
-                    # Send notification
-                    result = send_push_notification(
-                        tokens=tokens,
-                        title=notif['title'],
-                        body=notif['body'],
-                        data=notif['data'] or {}
-                    )
-                    
-                    # Update status
-                    if result['success_count'] > 0:
-                        cur.execute("""
-                            UPDATE push_notification_queue
-                            SET status = 'sent',
-                                sent_at = NOW()
-                            WHERE id = %s
-                        """, (notif['id'],))
-                        print(f"Sent notification {notif['id']} to {result['success_count']} devices")
-                    else:
-                        cur.execute("""
-                            UPDATE push_notification_queue
-                            SET status = 'failed',
-                                error_message = 'All tokens failed',
-                                sent_at = NOW()
-                            WHERE id = %s
-                        """, (notif['id'],))
-                    
-                    conn.commit()
-                    
-                except Exception as e:
-                    print(f"Error processing notification {notif['id']}: {e}")
-                    cur.execute("""
-                        UPDATE push_notification_queue
-                        SET status = 'failed',
-                            error_message = %s,
-                            sent_at = NOW()
-                        WHERE id = %s
-                    """, (str(e), notif['id']))
-                    conn.commit()
-            
-            return len(notifications)
+    print(f"Found {len(notifications)} pending notifications")
     
-    finally:
-        conn.close()
+    for notif in notifications:
+        try:
+            # Get user tokens
+            tokens = get_user_tokens(notif['user_id'])
+            
+            if not tokens:
+                print(f"No tokens found for user {notif['user_id']}")
+                # Mark as failed
+                requests.patch(
+                    f"{supabase_url}/rest/v1/push_notification_queue",
+                    headers=headers,
+                    params={'id': f"eq.{notif['id']}"},
+                    json={
+                        'status': 'failed',
+                        'error_message': 'No FCM tokens found',
+                        'sent_at': 'now()'
+                    }
+                )
+                continue
+            
+            # Send notification
+            result = send_push_notification(
+                tokens=tokens,
+                title=notif['title'],
+                body=notif['body'],
+                data=notif.get('data') or {}
+            )
+            
+            # Update status
+            if result['success_count'] > 0:
+                requests.patch(
+                    f"{supabase_url}/rest/v1/push_notification_queue",
+                    headers=headers,
+                    params={'id': f"eq.{notif['id']}"},
+                    json={
+                        'status': 'sent',
+                        'sent_at': 'now()'
+                    }
+                )
+                print(f"Sent notification {notif['id']} to {result['success_count']} devices")
+            else:
+                requests.patch(
+                    f"{supabase_url}/rest/v1/push_notification_queue",
+                    headers=headers,
+                    params={'id': f"eq.{notif['id']}"},
+                    json={
+                        'status': 'failed',
+                        'error_message': 'All tokens failed',
+                        'sent_at': 'now()'
+                    }
+                )
+        
+        except Exception as e:
+            print(f"Error processing notification {notif['id']}: {e}")
+            try:
+                requests.patch(
+                    f"{supabase_url}/rest/v1/push_notification_queue",
+                    headers=headers,
+                    params={'id': f"eq.{notif['id']}"},
+                    json={
+                        'status': 'failed',
+                        'error_message': str(e),
+                        'sent_at': 'now()'
+                    }
+                )
+            except:
+                pass
+    
+    return len(notifications)
 
 
 def lambda_handler(event, context):

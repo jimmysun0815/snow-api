@@ -10,8 +10,7 @@ import json
 from typing import List, Dict, Optional
 import firebase_admin
 from firebase_admin import credentials, messaging
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import requests
 
 # Initialize Firebase Admin SDK
 def initialize_firebase():
@@ -46,26 +45,24 @@ def initialize_firebase():
 
 
 def get_user_tokens(user_id: str) -> List[str]:
-    """Get all FCM tokens for a user"""
-    # Connect to Supabase (where device tokens are stored)
-    conn = psycopg2.connect(
-        host=os.environ.get('SUPABASE_DB_HOST', os.environ.get('DB_HOST')),
-        database=os.environ.get('SUPABASE_DB_NAME', os.environ.get('DB_NAME', 'postgres')),
-        user=os.environ.get('SUPABASE_DB_USER', os.environ.get('DB_USER', 'postgres')),
-        password=os.environ.get('SUPABASE_DB_PASSWORD', os.environ.get('DB_PASSWORD')),
-        port=os.environ.get('SUPABASE_DB_PORT', '5432'),
-    )
+    """Get all FCM tokens for a user using Supabase REST API"""
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
     
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                "SELECT token FROM device_tokens WHERE user_id = %s",
-                (user_id,)
-            )
-            results = cur.fetchall()
-            return [row['token'] for row in results]
-    finally:
-        conn.close()
+    headers = {
+        'apikey': supabase_key,
+        'Authorization': f'Bearer {supabase_key}',
+    }
+    
+    response = requests.get(
+        f'{supabase_url}/rest/v1/device_tokens',
+        headers=headers,
+        params={'user_id': f'eq.{user_id}', 'select': 'token'}
+    )
+    response.raise_for_status()
+    results = response.json()
+    
+    return [row['token'] for row in results]
 
 
 def send_push_notification(
