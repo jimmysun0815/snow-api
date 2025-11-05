@@ -27,11 +27,16 @@ def initialize_firebase():
             cred = credentials.Certificate(cred_path)
         else:
             # Use environment variables
+            private_key = os.environ.get('FIREBASE_PRIVATE_KEY', '')
+            # Handle both \\n (literal) and \n (actual newline)
+            if '\\n' in private_key:
+                private_key = private_key.replace('\\n', '\n')
+            
             cred_dict = {
                 "type": "service_account",
                 "project_id": os.environ.get('FIREBASE_PROJECT_ID'),
                 "private_key_id": os.environ.get('FIREBASE_PRIVATE_KEY_ID'),
-                "private_key": os.environ.get('FIREBASE_PRIVATE_KEY', '').replace('\\n', '\n'),
+                "private_key": private_key,
                 "client_email": os.environ.get('FIREBASE_CLIENT_EMAIL'),
                 "client_id": os.environ.get('FIREBASE_CLIENT_ID'),
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
