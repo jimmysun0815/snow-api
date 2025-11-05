@@ -90,66 +90,61 @@ def send_push_notification(
     
     initialize_firebase()
     
-    # Build notification
-    notification = messaging.Notification(
-        title=title,
-        body=body,
-        image=image_url
-    )
+    # Send to each token individually (compatible with older firebase-admin versions)
+    success_count = 0
+    failure_count = 0
     
-    # Build message
-    message = messaging.MulticastMessage(
-        notification=notification,
-        data=data or {},
-        tokens=tokens,
-        # iOS specific
-        apns=messaging.APNSConfig(
-            headers={'apns-priority': '10'},
-            payload=messaging.APNSPayload(
-                aps=messaging.Aps(
-                    alert=messaging.ApsAlert(
-                        title=title,
-                        body=body,
-                    ),
-                    badge=1,
-                    sound='default',
+    for token in tokens:
+        try:
+            # Build message for single token
+            message = messaging.Message(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                    image=image_url
                 ),
-            ),
-        ),
-        # Android specific
-        android=messaging.AndroidConfig(
-            priority='high',
-            notification=messaging.AndroidNotification(
-                icon='ic_notification',
-                color='#8B5CF6',
-                sound='default',
-            ),
-        ),
-    )
-    
-    # Send message
-    try:
-        response = messaging.send_multicast(message)
-        print(f"Successfully sent {response.success_count} messages")
-        print(f"Failed to send {response.failure_count} messages")
-        
-        # Handle failed tokens
-        if response.failure_count > 0:
-            failed_tokens = []
-            for idx, resp in enumerate(response.responses):
-                if not resp.success:
-                    failed_tokens.append(tokens[idx])
-                    print(f"Failed token: {tokens[idx]}, error: {resp.exception}")
+                data=data or {},
+                token=token,
+                # iOS specific
+                apns=messaging.APNSConfig(
+                    headers={'apns-priority': '10'},
+                    payload=messaging.APNSPayload(
+                        aps=messaging.Aps(
+                            alert=messaging.ApsAlert(
+                                title=title,
+                                body=body,
+                            ),
+                            badge=1,
+                            sound='default',
+                        ),
+                    ),
+                ),
+                # Android specific
+                android=messaging.AndroidConfig(
+                    priority='high',
+                    notification=messaging.AndroidNotification(
+                        icon='ic_notification',
+                        color='#8B5CF6',
+                        sound='default',
+                    ),
+                ),
+            )
             
-            # TODO: Remove invalid tokens from database
-        
-        return {
-            'success_count': response.success_count,
-            'failure_count': response.failure_count,
-        }
-    except Exception as e:
-        print(f"Error sending push notification: {e}")
-        return {'success_count': 0, 'failure_count': len(tokens)}
+            # Send message
+            messaging.send(message)
+            success_count += 1
+            
+        except Exception as e:
+            print(f"Failed to send to token {token[:20]}...: {e}")
+            failure_count += 1
+    
+    print(f"Successfully sent {success_count} messages")
+    print(f"Failed to send {failure_count} messages")
+    
+    return {
+        'success_count': success_count,
+        'failure_count': failure_count,
+    }
 
 
 # Specific notification types
