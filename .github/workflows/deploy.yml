@@ -205,12 +205,11 @@ jobs:
           aws lambda update-function-configuration \
             --function-name resort-data-notification-handler \
             --environment "Variables={
-              DB_HOST=${{ secrets.DB_HOST }},
-              DB_NAME=${{ secrets.DB_NAME }},
-              DB_USER=${{ secrets.DB_USER }},
-              DB_PASSWORD=${{ secrets.DB_PASSWORD }},
-              REDIS_HOST=${{ secrets.REDIS_HOST }},
-              REDIS_PORT=${{ secrets.REDIS_PORT }},
+              SUPABASE_DB_HOST=${{ secrets.SUPABASE_DB_HOST }},
+              SUPABASE_DB_NAME=${{ secrets.SUPABASE_DB_NAME }},
+              SUPABASE_DB_USER=${{ secrets.SUPABASE_DB_USER }},
+              SUPABASE_DB_PASSWORD=${{ secrets.SUPABASE_DB_PASSWORD }},
+              SUPABASE_DB_PORT=${{ secrets.SUPABASE_DB_PORT }},
               FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},
               FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }},
               FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }},

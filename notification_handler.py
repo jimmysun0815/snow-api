@@ -18,11 +18,13 @@ from push_service import (
 
 def process_notification_queue():
     """Process pending notifications in the queue"""
+    # Connect to Supabase (where user data and notification queue are stored)
     conn = psycopg2.connect(
-        host=os.environ.get('DB_HOST'),
-        database=os.environ.get('DB_NAME'),
-        user=os.environ.get('DB_USER'),
-        password=os.environ.get('DB_PASSWORD'),
+        host=os.environ.get('SUPABASE_DB_HOST', os.environ.get('DB_HOST')),
+        database=os.environ.get('SUPABASE_DB_NAME', os.environ.get('DB_NAME', 'postgres')),
+        user=os.environ.get('SUPABASE_DB_USER', os.environ.get('DB_USER', 'postgres')),
+        password=os.environ.get('SUPABASE_DB_PASSWORD', os.environ.get('DB_PASSWORD')),
+        port=os.environ.get('SUPABASE_DB_PORT', '5432'),
     )
     
     try:

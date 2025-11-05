@@ -47,11 +47,13 @@ def initialize_firebase():
 
 def get_user_tokens(user_id: str) -> List[str]:
     """Get all FCM tokens for a user"""
+    # Connect to Supabase (where device tokens are stored)
     conn = psycopg2.connect(
-        host=os.environ.get('DB_HOST'),
-        database=os.environ.get('DB_NAME'),
-        user=os.environ.get('DB_USER'),
-        password=os.environ.get('DB_PASSWORD'),
+        host=os.environ.get('SUPABASE_DB_HOST', os.environ.get('DB_HOST')),
+        database=os.environ.get('SUPABASE_DB_NAME', os.environ.get('DB_NAME', 'postgres')),
+        user=os.environ.get('SUPABASE_DB_USER', os.environ.get('DB_USER', 'postgres')),
+        password=os.environ.get('SUPABASE_DB_PASSWORD', os.environ.get('DB_PASSWORD')),
+        port=os.environ.get('SUPABASE_DB_PORT', '5432'),
     )
     
     try:
