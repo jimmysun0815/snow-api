@@ -174,17 +174,23 @@ class DataNormalizer:
                 '500hPa': temp_500hPa[0] if temp_500hPa else None,
             }
             
-            # 插值计算
-            current_temp_base = OpenMeteoCollector.interpolate_temperature_at_elevation(
+            # 插值计算，添加合理性检查
+            temp_base = OpenMeteoCollector.interpolate_temperature_at_elevation(
                 elevation_min, current_pressure_temps
             )
+            # 验证温度范围 (-50°C 到 50°C)
+            current_temp_base = temp_base if (temp_base is not None and -50 < temp_base < 50) else None
+            
             elevation_mid = (elevation_min + elevation_max) / 2
-            current_temp_mid = OpenMeteoCollector.interpolate_temperature_at_elevation(
+            temp_mid = OpenMeteoCollector.interpolate_temperature_at_elevation(
                 elevation_mid, current_pressure_temps
             )
-            current_temp_summit = OpenMeteoCollector.interpolate_temperature_at_elevation(
+            current_temp_mid = temp_mid if (temp_mid is not None and -50 < temp_mid < 50) else None
+            
+            temp_summit = OpenMeteoCollector.interpolate_temperature_at_elevation(
                 elevation_max, current_pressure_temps
             )
+            current_temp_summit = temp_summit if (temp_summit is not None and -50 < temp_summit < 50) else None
         
         # 未来24小时平均冰冻高度
         avg_freezing_level_24h = None
@@ -196,10 +202,24 @@ class DataNormalizer:
         if windspeeds and len(windspeeds) >= 24:
             avg_windspeed_24h = round(sum(windspeeds[:24]) / 24, 1)
         
-        # 未来24小时的详细数据
+        # 未来24小时的详细数据（从当前小时开始）
+        from datetime import datetime
         hourly_forecast = []
         times = hourly.get('time', [])
-        for i in range(min(24, len(times))):
+        
+        # 找到当前小时的索引
+        now = datetime.now()
+        current_hour_str = now.strftime('%Y-%m-%dT%H:00')
+        start_index = 0
+        
+        # 查找当前小时或最接近的未来小时
+        for i, time_str in enumerate(times):
+            if time_str >= current_hour_str:
+                start_index = i
+                break
+        
+        # 从当前小时开始，取24小时数据
+        for i in range(start_index, min(start_index + 24, len(times))):
             forecast_item = {
                 'time': times[i] if i < len(times) else None,
                 'temperature': temperatures[i] if i < len(temperatures) else None,
@@ -220,15 +240,21 @@ class DataNormalizer:
                     '500hPa': temp_500hPa[i] if i < len(temp_500hPa) else None,
                 }
                 
-                forecast_item['temp_base'] = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                # 计算分层温度并验证
+                temp_b = OpenMeteoCollector.interpolate_temperature_at_elevation(
                     elevation_min, pressure_temps_hour
                 )
-                forecast_item['temp_mid'] = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                forecast_item['temp_base'] = temp_b if (temp_b is not None and -50 < temp_b < 50) else None
+                
+                temp_m = OpenMeteoCollector.interpolate_temperature_at_elevation(
                     elevation_mid, pressure_temps_hour
                 )
-                forecast_item['temp_summit'] = OpenMeteoCollector.interpolate_temperature_at_elevation(
+                forecast_item['temp_mid'] = temp_m if (temp_m is not None and -50 < temp_m < 50) else None
+                
+                temp_s = OpenMeteoCollector.interpolate_temperature_at_elevation(
                     elevation_max, pressure_temps_hour
                 )
+                forecast_item['temp_summit'] = temp_s if (temp_s is not None and -50 < temp_s < 50) else None
             
             hourly_forecast.append(forecast_item)
         

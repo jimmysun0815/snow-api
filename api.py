@@ -8,6 +8,8 @@ from flask_cors import CORS
 from db_manager import DatabaseManager
 from datetime import datetime
 import math
+import json
+import os
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS，允许跨域请求
@@ -19,6 +21,45 @@ try:
 except Exception as e:
     print(f"[ERROR] 数据库连接失败: {e}")
     db_manager = None
+
+# 加载雪场配置（包含海拔等静态信息）
+_resort_config_cache = None
+
+def load_resort_config():
+    """加载雪场配置文件（缓存）"""
+    global _resort_config_cache
+    if _resort_config_cache is not None:
+        return _resort_config_cache
+    
+    config_path = os.path.join(os.path.dirname(__file__), 'resorts_config.json')
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+            # 转换为字典，以 ID 为 key
+            _resort_config_cache = {
+                resort['id']: resort 
+                for resort in config_data.get('resorts', [])
+            }
+            print(f"[OK] 已加载 {len(_resort_config_cache)} 个雪场配置")
+            return _resort_config_cache
+    except Exception as e:
+        print(f"[ERROR] 加载配置文件失败: {e}")
+        return {}
+
+def merge_resort_config(resort_data):
+    """将配置文件中的静态数据合并到雪场数据中"""
+    config = load_resort_config()
+    resort_id = resort_data.get('id')
+    
+    if resort_id and resort_id in config:
+        resort_config = config[resort_id]
+        # 合并海拔数据（优先使用配置文件）
+        if 'elevation_min' in resort_config:
+            resort_data['elevation_min'] = resort_config['elevation_min']
+        if 'elevation_max' in resort_config:
+            resort_data['elevation_max'] = resort_config['elevation_max']
+    
+    return resort_data
 
 
 @app.route('/api/resorts', methods=['GET'])
@@ -34,6 +75,9 @@ def get_all_resorts():
             'error': '暂无数据',
             'message': '请先运行数据采集'
         }), 404
+    
+    # 合并配置数据（海拔等静态信息）
+    resorts = [merge_resort_config(r) for r in resorts]
     
     return jsonify({
         'resorts': resorts,
@@ -58,6 +102,9 @@ def get_resort_by_id(resort_id):
             'resort_id': resort_id
         }), 404
     
+    # 合并配置数据
+    resort = merge_resort_config(resort)
+    
     return jsonify(resort)
 
 
@@ -75,6 +122,9 @@ def get_resort_by_slug(slug):
             'slug': slug
         }), 404
     
+    # 合并配置数据
+    resort = merge_resort_config(resort)
+    
     return jsonify(resort)
 
 
@@ -86,6 +136,9 @@ def get_open_resorts():
     
     all_resorts = db_manager.get_all_resorts_data()
     open_resorts = [r for r in all_resorts if r.get('status') in ['open', 'partial']]
+    
+    # 合并配置数据
+    open_resorts = [merge_resort_config(r) for r in open_resorts]
     
     return jsonify({
         'resorts': open_resorts,

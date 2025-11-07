@@ -174,6 +174,7 @@ class DatabaseManager:
             
             # 组装数据
             data = {
+                'id': resort.id,  # 添加 'id' 字段用于 API 返回
                 'resort_id': resort.id,
                 'name': resort.name,
                 'slug': resort.slug,

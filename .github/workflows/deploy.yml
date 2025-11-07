@@ -7,6 +7,7 @@ on:
     paths:
       - '**/*.py'
       - 'requirements.txt'
+      - 'resorts_config.json'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -240,6 +241,26 @@ jobs:
           
           echo "✅ 所有环境变量更新成功"
 
+      - name: Trigger Initial Data Collection
+        run: |
+          echo "🎯 触发一次数据采集..."
+          
+          # 等待 Collector Lambda 更新完成
+          aws lambda wait function-updated \
+            --function-name resort-data-collector \
+            --region ${{ env.AWS_REGION }} || true
+          
+          # 调用 Collector Lambda
+          aws lambda invoke \
+            --function-name resort-data-collector \
+            --invocation-type Event \
+            --region ${{ env.AWS_REGION }} \
+            response.json
+          
+          echo "✅ 数据采集任务已启动（异步执行）"
+          echo "📊 查看采集日志:"
+          echo "   AWS Console → CloudWatch Logs → /aws/lambda/resort-data-collector"
+
       - name: Deployment Summary
         run: |
           echo ""
@@ -249,6 +270,10 @@ jobs:
           echo ""
           echo "📡 API 访问地址:"
           echo "   https://api.steponsnow.com/api/resorts"
+          echo ""
+          echo "🎯 数据采集:"
+          echo "   ✅ 部署后自动触发了一次数据采集"
+          echo "   ⏰ 定时任务: 每3小时自动采集"
           echo ""
           echo "🔧 验证部署:"
           echo "   curl https://api.steponsnow.com/api/status"

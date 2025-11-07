@@ -2,6 +2,29 @@
 
 雪场数据采集和 REST API 服务
 
+## 📊 新功能：数据监控系统
+
+我们添加了完整的数据质量监控系统！每次采集后自动生成美观的监控报告。
+
+### 🚀 快速开始监控
+```bash
+# 运行数据采集（自动生成监控报告）
+python3 collect_data.py
+
+# 查看 HTML 监控报告
+./start_monitor.sh
+# 然后访问 http://localhost:8888/monitor_report.html
+```
+
+### 📚 监控系统文档
+- **[MONITOR_IMPLEMENTATION.md](MONITOR_IMPLEMENTATION.md)** - 完整实现总结 ⭐ 推荐先看这个
+- **[MONITOR_QUICKSTART.md](MONITOR_QUICKSTART.md)** - 快速使用指南
+- **[MONITOR_README.md](MONITOR_README.md)** - 详细系统文档
+- **[MONITOR_UI_GUIDE.md](MONITOR_UI_GUIDE.md)** - HTML 界面说明
+- **[DATA_FIX_GUIDE.md](DATA_FIX_GUIDE.md)** - 数据问题修复指南
+
+---
+
 ## 📁 项目结构
 
 ```

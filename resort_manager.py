@@ -145,12 +145,13 @@ class ResortDataManager:
         
         return normalized_data
     
-    def collect_all(self, enabled_only: bool = True) -> List[Dict]:
+    def collect_all(self, enabled_only: bool = True, failure_tracker=None) -> List[Dict]:
         """
         采集所有雪场数据
         
         Args:
             enabled_only: 是否只采集已启用的雪场
+            failure_tracker: 失败追踪器（可选）
             
         Returns:
             标准化数据列表
@@ -168,6 +169,7 @@ class ResortDataManager:
         
         for resort_config in resorts_to_collect:
             resort_name = resort_config.get('name')
+            resort_id = resort_config.get('id')
             print(f"📍 采集: {resort_name}")
             
             try:
@@ -188,8 +190,43 @@ class ResortDataManager:
                 else:
                     print(f"   [ERROR] 失败")
                     
+                    # 记录失败
+                    if failure_tracker:
+                        url = resort_config.get('source_url', 'N/A')
+                        failure_tracker.add_failure(
+                            resort_id=resort_id,
+                            resort_name=resort_name,
+                            error_type='NO_DATA',
+                            error_message='采集器返回空数据',
+                            url=url
+                        )
+                    
             except Exception as e:
-                print(f"   [ERROR] 错误: {e}")
+                error_str = str(e)
+                print(f"   [ERROR] 错误: {error_str}")
+                
+                # 记录失败
+                if failure_tracker:
+                    url = resort_config.get('source_url', 'N/A')
+                    
+                    # 判断错误类型
+                    error_type = 'UNKNOWN'
+                    if '404' in error_str or 'Not Found' in error_str:
+                        error_type = 'HTTP_404'
+                    elif 'timeout' in error_str.lower() or 'timed out' in error_str.lower():
+                        error_type = 'TIMEOUT'
+                    elif 'connection' in error_str.lower():
+                        error_type = 'CONNECTION_ERROR'
+                    elif 'json' in error_str.lower():
+                        error_type = 'JSON_ERROR'
+                    
+                    failure_tracker.add_failure(
+                        resort_id=resort_id,
+                        resort_name=resort_name,
+                        error_type=error_type,
+                        error_message=error_str[:200],  # 限制长度
+                        url=url
+                    )
             
             print()
         
