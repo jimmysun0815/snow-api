@@ -28,8 +28,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if 'Records' in event:
         # SQS 批量事件
         return handle_sqs_batch(event, context)
+    elif 'body' in event and 'headers' in event:
+        # Lambda Function URL (HTTP 请求)
+        return handle_http_request(event, context)
     elif 'type' in event and event['type'] == 'INSERT':
-        # Supabase Webhook
+        # Supabase Webhook (直接调用)
         return handle_supabase_webhook(event, context)
     else:
         # 直接调用（测试）
@@ -59,6 +62,62 @@ def handle_sqs_batch(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     return {
         "batchItemFailures": failed_messages
     }
+
+
+def handle_http_request(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """处理 Lambda Function URL 的 HTTP 请求（Supabase Webhook）"""
+    print(f"🌐 处理 HTTP 请求")
+    
+    try:
+        # 解析 HTTP body
+        body_str = event.get('body', '{}')
+        if event.get('isBase64Encoded', False):
+            import base64
+            body_str = base64.b64decode(body_str).decode('utf-8')
+        
+        webhook_data = json.loads(body_str)
+        print(f"📦 Webhook 数据: {json.dumps(webhook_data, default=str)[:300]}")
+        
+        # Supabase Webhook 格式: {"type": "INSERT", "table": "...", "record": {...}}
+        if webhook_data.get('type') == 'INSERT':
+            record = webhook_data.get('record', {})
+            
+            notification_data = {
+                'user_id': record.get('user_id'),
+                'notification_type': record.get('notification_type'),
+                'title': record.get('title'),
+                'body': record.get('body'),
+                'data': record.get('data', {})
+            }
+            
+            success = process_notification(notification_data)
+            
+            return {
+                'statusCode': 200 if success else 500,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({
+                    'success': success,
+                    'message': 'Notification processed'
+                })
+            }
+        else:
+            print(f"⚠️  未知的 webhook 类型: {webhook_data.get('type')}")
+            return {
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'Unknown webhook type'})
+            }
+            
+    except Exception as e:
+        print(f"❌ 处理 HTTP 请求失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': str(e)})
+        }
+
 
 
 def handle_supabase_webhook(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
