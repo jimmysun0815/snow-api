@@ -161,6 +161,27 @@ jobs:
           echo "✅ Snow Checker Lambda 包构建完成"
           ls -lh snow-checker.zip
 
+      - name: Build SQS Notification Processor Lambda
+        run: |
+          echo "📦 构建 SQS Notification Processor Lambda 包..."
+          
+          # 创建临时目录
+          mkdir -p package-sqs
+          
+          # 复制代码
+          cp sqs_notification_processor.py push_service.py package-sqs/
+          
+          # 安装 Lambda 专用依赖
+          pip install -r requirements-lambda.txt -t package-sqs/ --upgrade
+          
+          # 创建部署包
+          cd package-sqs
+          zip -r ../sqs-notification-processor.zip .
+          cd ..
+          
+          echo "✅ SQS Notification Processor Lambda 包构建完成"
+          ls -lh sqs-notification-processor.zip
+
       - name: Deploy Notification Handler Lambda
         run: |
           echo "🚀 部署 Notification Handler Lambda 函数..."
@@ -185,6 +206,17 @@ jobs:
           echo "⏳ 等待 Lambda 更新完成..."
           sleep 10
 
+      - name: Deploy SQS Notification Processor Lambda
+        run: |
+          echo "🚀 部署 SQS Notification Processor Lambda 函数..."
+          
+          aws lambda update-function-code \
+            --function-name resort-data-sqs-notification-processor \
+            --zip-file fileb://sqs-notification-processor.zip \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ SQS Notification Processor Lambda 部署成功"
+
       - name: Update Lambda Environment Variables
         run: |
           echo "🔧 更新 Lambda 环境变量（Firebase 配置）..."
@@ -197,6 +229,10 @@ jobs:
           
           aws lambda wait function-updated \
             --function-name resort-data-snow-checker \
+            --region ${{ env.AWS_REGION }} || true
+          
+          aws lambda wait function-updated \
+            --function-name resort-data-sqs-notification-processor \
             --region ${{ env.AWS_REGION }} || true
           
           echo "✅ 所有 Lambda 函数已就绪"
@@ -231,6 +267,25 @@ jobs:
               DB_PASSWORD=${{ secrets.DB_PASSWORD }},
               REDIS_HOST=${{ secrets.REDIS_HOST }},
               REDIS_PORT=${{ secrets.REDIS_PORT }},
+              FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},
+              FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }},
+              FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }},
+              FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }},
+              FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}
+            }" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Snow Checker 环境变量更新完成"
+          echo "⏳ 等待更新完成..."
+          sleep 5
+          
+          # 更新 SQS Notification Processor 环境变量
+          echo "🔧 更新 SQS Notification Processor 环境变量..."
+          aws lambda update-function-configuration \
+            --function-name resort-data-sqs-notification-processor \
+            --environment "Variables={
+              SUPABASE_URL=${{ secrets.SUPABASE_URL }},
+              SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }},
               FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},
               FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }},
               FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }},
