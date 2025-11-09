@@ -96,15 +96,21 @@ class DataNormalizer:
             status = 'closed'
         
         # 基础积雪（优先使用 base，如果没有则用 summit）
-        base_depth = snow.get('base') or snow.get('summit') or 0
-        if base_depth is None:
-            base_depth = 0
+        base_depth = snow.get('base') or snow.get('summit')
+        
+        # 山顶积雪
+        summit_depth = snow.get('summit')
         
         # 温度（使用平均温度）
         weather_temp = short_weather.get('temp', {})
         temp_min = weather_temp.get('min', 0)
         temp_max = weather_temp.get('max', 0)
         avg_temp = (temp_min + temp_max) / 2 if temp_min and temp_max else 0
+        
+        # 辅助函数：处理 None 值
+        def handle_none(value):
+            """如果是 None 保留 None，否则返回数值（0作为默认值）"""
+            return value if value is not None else None
         
         return {
             'resort_id': resort_config.get('id'),
@@ -114,13 +120,15 @@ class DataNormalizer:
             'lat': full_resort.get('latitude') or resort_config.get('lat'),
             'lon': full_resort.get('longitude') or resort_config.get('lon'),
             'status': status,
-            'new_snow': snow.get('last24', 0) or 0,
-            'base_depth': base_depth,
-            'lifts_open': lifts.get('open', 0),
-            'lifts_total': lifts.get('total', 0),
-            'trails_open': runs.get('open', 0),
-            'trails_total': runs.get('total', 0),
-            'temperature': round(avg_temp, 1),
+            'new_snow': snow.get('last24') or 0,
+            'base_depth': handle_none(base_depth),
+            'snow_base': handle_none(base_depth),  # 兼容字段
+            'snow_summit': handle_none(summit_depth),  # 兼容字段
+            'lifts_open': handle_none(lifts.get('open')),
+            'lifts_total': handle_none(lifts.get('total')),
+            'trails_open': handle_none(runs.get('open')),
+            'trails_total': handle_none(runs.get('total')),
+            'temperature': round(avg_temp, 1) if avg_temp else None,
             'last_update': datetime.now().isoformat(),
             'source': resort_config.get('source_url'),
             'data_source': 'onthesnow',
@@ -138,13 +146,17 @@ class DataNormalizer:
         
         # 当前天气数据（取第一个小时的值）
         temperatures = hourly.get('temperature_2m', [])
+        apparent_temperatures = hourly.get('apparent_temperature', [])  # 体感温度
         humidities = hourly.get('relativehumidity_2m', [])
         windspeeds = hourly.get('windspeed_10m', [])
         winddirections = hourly.get('winddirection_10m', [])
         freezing_levels = hourly.get('freezinglevel_height', [])
         weathercodes = hourly.get('weathercode', [])
+        snowfalls = hourly.get('snowfall', [])  # 小时降雪量 (cm)
+        precipitations = hourly.get('precipitation', [])  # 小时降水量 (mm)
         
         current_temp = temperatures[0] if temperatures else None
+        current_apparent_temp = apparent_temperatures[0] if apparent_temperatures else None
         current_humidity = humidities[0] if humidities else None
         current_windspeed = windspeeds[0] if windspeeds else None
         current_winddirection = winddirections[0] if winddirections else None
@@ -202,6 +214,16 @@ class DataNormalizer:
         if windspeeds and len(windspeeds) >= 24:
             avg_windspeed_24h = round(sum(windspeeds[:24]) / 24, 1)
         
+        # 未来24小时降雪量总和
+        snowfall_24h = None
+        if snowfalls and len(snowfalls) >= 24:
+            snowfall_24h = round(sum(snowfalls[:24]), 1)  # cm
+        
+        # 未来24小时降水量总和
+        precipitation_24h = None
+        if precipitations and len(precipitations) >= 24:
+            precipitation_24h = round(sum(precipitations[:24]), 1)  # mm
+        
         # 未来24小时的详细数据（从当前小时开始）
         from datetime import datetime
         hourly_forecast = []
@@ -223,11 +245,14 @@ class DataNormalizer:
             forecast_item = {
                 'time': times[i] if i < len(times) else None,
                 'temperature': temperatures[i] if i < len(temperatures) else None,
+                'apparent_temperature': apparent_temperatures[i] if i < len(apparent_temperatures) else None,  # 体感温度
                 'humidity': humidities[i] if i < len(humidities) else None,
                 'windspeed': windspeeds[i] if i < len(windspeeds) else None,
                 'winddirection': winddirections[i] if i < len(winddirections) else None,
                 'freezing_level': freezing_levels[i] if i < len(freezing_levels) else None,
                 'weather_code': weathercodes[i] if i < len(weathercodes) else None,
+                'snowfall': snowfalls[i] if i < len(snowfalls) else None,  # cm
+                'precipitation': precipitations[i] if i < len(precipitations) else None,  # mm
             }
             
             # 添加分层温度（如果有海拔数据）
@@ -285,13 +310,34 @@ class DataNormalizer:
             snowfall = daily.get('snowfall_sum', [])
             precipitation = daily.get('precipitation_sum', [])
             
+            # 从hourly数据中提取每天的天气代码（取中午12点的）
+            hourly_times = hourly.get('time', [])
+            hourly_weathercodes = hourly.get('weathercode', [])
+            
             for i in range(min(7, len(times))):
+                date = times[i] if i < len(times) else None
+                
+                # 找到该日期中午12点的天气代码
+                weather_code = None
+                if date and hourly_times and hourly_weathercodes:
+                    target_time = f"{date}T12:00"
+                    try:
+                        idx = hourly_times.index(target_time)
+                        weather_code = hourly_weathercodes[idx] if idx < len(hourly_weathercodes) else None
+                    except ValueError:
+                        # 如果找不到12点，就找最接近的时间
+                        for j, t in enumerate(hourly_times):
+                            if t.startswith(date):
+                                weather_code = hourly_weathercodes[j] if j < len(hourly_weathercodes) else None
+                                break
+                
                 forecast_7d.append({
-                    'date': times[i] if i < len(times) else None,
+                    'date': date,
                     'temp_max': temps_max[i] if i < len(temps_max) else None,
                     'temp_min': temps_min[i] if i < len(temps_min) else None,
                     'snowfall': snowfall[i] if i < len(snowfall) else None,
                     'precipitation': precipitation[i] if i < len(precipitation) else None,
+                    'weather_code': weather_code,  # 添加天气代码
                 })
         
         # 风向转换为方位
@@ -307,6 +353,7 @@ class DataNormalizer:
             # 当前天气
             'current': {
                 'temperature': current_temp,
+                'apparent_temperature': current_apparent_temp,  # 体感温度
                 'humidity': current_humidity,
                 'windspeed': current_windspeed,
                 'winddirection': current_winddirection,
@@ -319,6 +366,9 @@ class DataNormalizer:
             'temp_base': current_temp_base,
             'temp_mid': current_temp_mid,
             'temp_summit': current_temp_summit,
+            # 降雪量和降水量预测
+            'snowfall_24h': snowfall_24h,  # 未来24小时降雪量总和 (cm)
+            'precipitation_24h': precipitation_24h,  # 未来24小时降水量总和 (mm)
             # 今日数据
             'today': today_data,
             # 24小时预报

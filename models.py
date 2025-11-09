@@ -89,8 +89,11 @@ class ResortWeather(Base):
     
     # 当前天气
     current_temp = Column(Float)
+    apparent_temperature = Column(Float)  # 体感温度
     current_humidity = Column(Integer)
     current_windspeed = Column(Float)
+    wind_speed = Column(Float)  # 风速 (km/h)
+    wind_direction = Column(String(10))  # 风向
     current_winddirection = Column(Float)
     current_winddirection_compass = Column(String(10))
     

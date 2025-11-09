@@ -78,6 +78,11 @@ class OSMTrailsCollector(BaseCollector):
             elements = data['elements']
             self.log('INFO', f'找到 {len(elements)} 条原始雪道')
             
+            if len(elements) == 0:
+                self.log('WARNING', f'在半径 {search_radius_km}km 内没有找到任何piste:type标签的雪道')
+                self.log('INFO', f'中心坐标: ({lat}, {lon})')
+                self.log('INFO', f'搜索范围: {bbox}')
+            
             # 步骤3: 处理和过滤雪道
             self.log('INFO', '步骤3: 过滤雪道')
             trails = self._process_trails(elements, lat, lon, boundary)
@@ -299,6 +304,9 @@ class OSMTrailsCollector(BaseCollector):
             True 如果雪道在边界内
         """
         if not trail_geometry or len(trail_geometry) < 2:
+            return False
+        
+        if not boundary or len(boundary) < 3:
             return False
         
         # 采样策略：检查起点、中点、终点和若干中间点

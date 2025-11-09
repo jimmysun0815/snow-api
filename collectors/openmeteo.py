@@ -36,11 +36,14 @@ class OpenMeteoCollector(BaseCollector):
             'longitude': lon,
             'hourly': [
                 'temperature_2m',
+                'apparent_temperature',  # 体感温度
                 'relativehumidity_2m',
                 'windspeed_10m',
                 'winddirection_10m',
                 'freezinglevel_height',
                 'weathercode',  # WMO天气代码
+                'snowfall',  # 小时降雪量 (cm)
+                'precipitation',  # 小时降水量 (mm)
                 # 气压层温度数据（用于按海拔计算温度）
                 'temperature_1000hPa',  # ~110m
                 'temperature_925hPa',   # ~750m

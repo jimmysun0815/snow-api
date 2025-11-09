@@ -97,8 +97,11 @@ class DatabaseManager:
                     resort_id=resort_config['id'],
                     timestamp=datetime.now(),
                     current_temp=current.get('temperature'),
+                    apparent_temperature=current.get('apparent_temperature'),
                     current_humidity=current.get('humidity'),
                     current_windspeed=current.get('windspeed'),
+                    wind_speed=current.get('windspeed'),
+                    wind_direction=current.get('winddirection_compass'),
                     current_winddirection=current.get('winddirection'),
                     current_winddirection_compass=current.get('winddirection_compass'),
                     freezing_level_current=weather_data.get('freezing_level_current'),
@@ -214,9 +217,13 @@ class DatabaseManager:
             if latest_weather:
                 data['weather'] = {
                     'temperature': latest_weather.current_temp,
+                    'apparent_temperature': latest_weather.apparent_temperature,
                     'humidity': latest_weather.current_humidity,
+                    'wind_speed': latest_weather.wind_speed,
+                    'wind_direction': latest_weather.wind_direction,
                     'current': {
                         'temperature': latest_weather.current_temp,
+                        'apparent_temperature': latest_weather.apparent_temperature,
                         'humidity': latest_weather.current_humidity,
                         'windspeed': latest_weather.current_windspeed,
                         'winddirection': latest_weather.current_winddirection,
@@ -252,9 +259,92 @@ class DatabaseManager:
             print(f"[ERROR] 查询数据失败: {e}")
             return None
     
+    def get_all_resorts_summary(self) -> List[Dict]:
+        """
+        获取所有雪场的摘要信息（轻量级，不含完整天气预报）
+        
+        Returns:
+            雪场摘要列表
+        """
+        cache_key = "resorts:summary"
+        
+        # 1. 尝试从 Redis 获取
+        cached = self.redis_client.get(cache_key)
+        if cached:
+            print("[OK] 从缓存获取所有雪场摘要")
+            return json.loads(cached)
+        
+        # 2. 从数据库查询
+        try:
+            resorts = self.session.query(Resort).filter_by(enabled=True).all()
+            summary_list = []
+            
+            for resort in resorts:
+                # 查询最新雪况
+                latest_condition = self.session.query(ResortCondition).filter_by(
+                    resort_id=resort.id
+                ).order_by(desc(ResortCondition.timestamp)).first()
+                
+                # 查询最新天气（只需要当前温度、湿度等基础字段）
+                latest_weather = self.session.query(ResortWeather).filter_by(
+                    resort_id=resort.id
+                ).order_by(desc(ResortWeather.timestamp)).first()
+                
+                # 组装摘要数据（不包含 hourly_forecast 和 forecast_7d）
+                summary = {
+                    'id': resort.id,
+                    'name': resort.name,
+                    'slug': resort.slug,
+                    'location': resort.location,
+                    'lat': resort.lat,
+                    'lon': resort.lon,
+                    'elevation_min': resort.elevation_min,
+                    'elevation_max': resort.elevation_max,
+                }
+                
+                # 添加雪况信息
+                if latest_condition:
+                    summary.update({
+                        'status': latest_condition.status,
+                        'new_snow_24h': latest_condition.new_snow,
+                        'base_depth': latest_condition.base_depth,
+                        'lifts_open': latest_condition.lifts_open,
+                        'lifts_total': latest_condition.lifts_total,
+                        'trails_open': latest_condition.trails_open,
+                        'trails_total': latest_condition.trails_total,
+                        'last_condition_update': latest_condition.timestamp.isoformat(),
+                    })
+                
+                # 添加基础天气信息（不含预报）
+                if latest_weather:
+                    summary['weather'] = {
+                        'temperature': latest_weather.current_temp,
+                        'apparent_temperature': latest_weather.apparent_temperature,
+                        'humidity': latest_weather.current_humidity,
+                        'wind_speed': latest_weather.wind_speed,
+                        'wind_direction': latest_weather.wind_direction,
+                        'last_weather_update': latest_weather.timestamp.isoformat(),
+                    }
+                
+                summary_list.append(summary)
+            
+            # 3. 存入 Redis 缓存（缓存时间可以更短，比如10分钟）
+            self.redis_client.setex(
+                cache_key,
+                600,  # 10分钟缓存
+                json.dumps(summary_list, ensure_ascii=False)
+            )
+            
+            print(f"[DATA] 从数据库获取 {len(summary_list)} 个雪场摘要并缓存")
+            return summary_list
+            
+        except Exception as e:
+            print(f"[ERROR] 查询所有雪场摘要失败: {e}")
+            return []
+    
     def get_all_resorts_data(self) -> List[Dict]:
         """
-        获取所有雪场的最新数据
+        获取所有雪场的最新数据（完整版，包含天气预报）
         
         Returns:
             雪场数据列表
@@ -347,7 +437,10 @@ class DatabaseManager:
             
         except Exception as e:
             self.session.rollback()
+            import traceback
+            error_detail = traceback.format_exc()
             print(f"[ERROR] 保存雪道数据失败: {e}")
+            print(f"[DEBUG] 详细错误:\n{error_detail}")
             return False
     
     def get_resort_trails(self, resort_id: int = None, resort_slug: str = None) -> List[Dict]:

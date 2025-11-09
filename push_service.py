@@ -90,9 +90,17 @@ def send_push_notification(
     
     initialize_firebase()
     
+    # Convert all data values to strings (FCM requirement)
+    string_data = {}
+    if data:
+        for key, value in data.items():
+            if value is not None:
+                string_data[key] = str(value) if not isinstance(value, str) else value
+    
     # Send to each token individually (compatible with older firebase-admin versions)
     success_count = 0
     failure_count = 0
+    failed_tokens = []
     
     for token in tokens:
         try:
@@ -103,7 +111,7 @@ def send_push_notification(
                     body=body,
                     image=image_url
                 ),
-                data=data or {},
+                data=string_data,
                 token=token,
                 # iOS specific
                 apns=messaging.APNSConfig(
@@ -126,20 +134,34 @@ def send_push_notification(
                         icon='ic_notification',
                         color='#8B5CF6',
                         sound='default',
+                        channel_id='high_importance_channel',
                     ),
                 ),
             )
             
             # Send message
-            messaging.send(message)
+            response = messaging.send(message)
             success_count += 1
+            print(f"✅ Sent to token {token[:20]}...: {response}")
             
         except Exception as e:
-            print(f"Failed to send to token {token[:20]}...: {e}")
+            error_msg = str(e)
+            print(f"❌ Failed to send to token {token[:20]}...: {error_msg}")
             failure_count += 1
+            failed_tokens.append(token)
+            
+            # Log specific error types
+            if 'not a valid FCM registration token' in error_msg:
+                print(f"   → Token is invalid or expired")
+            elif 'Requested entity was not found' in error_msg:
+                print(f"   → Token was not found (may have been unregistered)")
+            elif 'SenderId mismatch' in error_msg:
+                print(f"   → Token belongs to different Firebase project")
     
-    print(f"Successfully sent {success_count} messages")
-    print(f"Failed to send {failure_count} messages")
+    print(f"✅ Successfully sent {success_count} messages")
+    if failure_count > 0:
+        print(f"❌ Failed to send {failure_count} messages")
+        print(f"   Failed tokens: {[t[:20] + '...' for t in failed_tokens]}")
     
     return {
         'success_count': success_count,

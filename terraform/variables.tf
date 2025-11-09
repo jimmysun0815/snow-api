@@ -126,6 +126,20 @@ variable "firebase_client_id" {
   sensitive   = true
 }
 
+# Supabase 配置 (用于实时推送 SQS 集成)
+variable "supabase_url" {
+  description = "Supabase Project URL"
+  type        = string
+  default     = ""
+}
+
+variable "supabase_service_key" {
+  description = "Supabase Service Role Key"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # AWS Profile (本地用，GitHub Actions 留空)
 variable "aws_profile" {
   description = "AWS CLI profile 名称 (本地开发用，CI/CD 留空)"

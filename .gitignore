@@ -47,6 +47,7 @@ Thumbs.db
 
 # Lambda 部署包
 package/
+lambda_package/
 *.zip
 
 # 临时文件

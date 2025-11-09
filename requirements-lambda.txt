@@ -1,0 +1,15 @@
+# Lambda 函数依赖
+# 用于 SQS notification processor
+
+# Firebase Admin SDK
+firebase-admin==6.2.0
+
+# HTTP 请求（用于调用 Supabase API）
+requests==2.31.0
+
+# 其他依赖
+certifi==2023.7.22
+charset-normalizer==3.2.0
+idna==3.4
+urllib3==2.0.4
+

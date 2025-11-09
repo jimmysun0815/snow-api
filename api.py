@@ -64,7 +64,7 @@ def merge_resort_config(resort_data):
 
 @app.route('/api/resorts', methods=['GET'])
 def get_all_resorts():
-    """获取所有雪场数据"""
+    """获取所有雪场数据（完整版，包含天气预报）"""
     if not db_manager:
         return jsonify({'error': '数据库未连接'}), 500
     
@@ -83,6 +83,33 @@ def get_all_resorts():
         'resorts': resorts,
         'metadata': {
             'total_resorts': len(resorts),
+            'timestamp': datetime.now().isoformat()
+        }
+    })
+
+
+@app.route('/api/resorts/summary', methods=['GET'])
+def get_resorts_summary():
+    """获取所有雪场摘要（轻量级，不含完整天气预报）"""
+    if not db_manager:
+        return jsonify({'error': '数据库未连接'}), 500
+    
+    summaries = db_manager.get_all_resorts_summary()
+    
+    if not summaries:
+        return jsonify({
+            'error': '暂无数据',
+            'message': '请先运行数据采集'
+        }), 404
+    
+    # 合并配置数据（海拔等静态信息）
+    summaries = [merge_resort_config(s) for s in summaries]
+    
+    return jsonify({
+        'resorts': summaries,
+        'metadata': {
+            'total_resorts': len(summaries),
+            'data_type': 'summary',
             'timestamp': datetime.now().isoformat()
         }
     })
