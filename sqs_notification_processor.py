@@ -14,9 +14,52 @@ from push_service import (
     get_user_tokens,
     initialize_firebase
 )
+import requests
 
 # 初始化 Firebase
 initialize_firebase()
+
+def update_notification_status(queue_id: int, status: str) -> bool:
+    """
+    更新 push_notification_queue 的状态
+    
+    Args:
+        queue_id: push_notification_queue 表的 ID
+        status: 新状态 ('sent', 'failed')
+    
+    Returns:
+        是否更新成功
+    """
+    try:
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
+        
+        headers = {
+            'apikey': supabase_key,
+            'Authorization': f'Bearer {supabase_key}',
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+        }
+        
+        data = {
+            'status': status,
+            'sent_at': 'now()' if status == 'sent' else None
+        }
+        
+        response = requests.patch(
+            f'{supabase_url}/rest/v1/push_notification_queue',
+            headers=headers,
+            params={'id': f'eq.{queue_id}'},
+            json=data
+        )
+        response.raise_for_status()
+        
+        print(f"✅ 更新通知状态: ID={queue_id}, status={status}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ 更新通知状态失败: {e}")
+        return False
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -81,6 +124,7 @@ def handle_http_request(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Supabase Webhook 格式: {"type": "INSERT", "table": "...", "record": {...}}
         if webhook_data.get('type') == 'INSERT':
             record = webhook_data.get('record', {})
+            queue_id = record.get('id')  # push_notification_queue 的 ID
             
             notification_data = {
                 'user_id': record.get('user_id'),
@@ -91,6 +135,10 @@ def handle_http_request(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }
             
             success = process_notification(notification_data)
+            
+            # 更新数据库中的状态
+            if queue_id:
+                update_notification_status(queue_id, 'sent' if success else 'failed')
             
             return {
                 'statusCode': 200 if success else 500,

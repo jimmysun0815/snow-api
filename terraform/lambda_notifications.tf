@@ -48,25 +48,26 @@ resource "aws_cloudwatch_log_group" "notification_handler" {
 }
 
 # EventBridge 规则：每分钟运行一次
-resource "aws_cloudwatch_event_rule" "notification_handler_schedule" {
-  name                = "${var.project_name}-notification-handler-schedule"
-  description         = "Trigger notification handler every minute"
-  schedule_expression = "rate(1 minute)"
-}
+# ⚠️ 已禁用 - 现在使用 Supabase Webhook + Lambda Function URL 实时推送
+# resource "aws_cloudwatch_event_rule" "notification_handler_schedule" {
+#   name                = "${var.project_name}-notification-handler-schedule"
+#   description         = "Trigger notification handler every minute"
+#   schedule_expression = "rate(1 minute)"
+# }
 
-resource "aws_cloudwatch_event_target" "notification_handler" {
-  rule      = aws_cloudwatch_event_rule.notification_handler_schedule.name
-  target_id = "NotificationHandler"
-  arn       = aws_lambda_function.notification_handler.arn
-}
+# resource "aws_cloudwatch_event_target" "notification_handler" {
+#   rule      = aws_cloudwatch_event_rule.notification_handler_schedule.name
+#   target_id = "NotificationHandler"
+#   arn       = aws_lambda_function.notification_handler.arn
+# }
 
-resource "aws_lambda_permission" "allow_eventbridge_notification" {
-  statement_id  = "AllowExecutionFromEventBridge"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.notification_handler.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.notification_handler_schedule.arn
-}
+# resource "aws_lambda_permission" "allow_eventbridge_notification" {
+#   statement_id  = "AllowExecutionFromEventBridge"
+#   action        = "lambda:InvokeFunction"
+#   function_name = aws_lambda_function.notification_handler.function_name
+#   principal     = "events.amazonaws.com"
+#   source_arn    = aws_cloudwatch_event_rule.notification_handler_schedule.arn
+# }
 
 # 2. Snow Checker Lambda (降雪检查和推送)
 resource "aws_lambda_function" "snow_checker" {
