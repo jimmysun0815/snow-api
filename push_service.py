@@ -65,6 +65,34 @@ def get_user_tokens(user_id: str) -> List[str]:
     return [row['token'] for row in results]
 
 
+def delete_invalid_token(token: str):
+    """
+    删除失效的 FCM token
+    
+    Args:
+        token: 失效的 FCM token
+    """
+    try:
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
+        
+        headers = {
+            'apikey': supabase_key,
+            'Authorization': f'Bearer {supabase_key}',
+        }
+        
+        response = requests.delete(
+            f'{supabase_url}/rest/v1/device_tokens',
+            headers=headers,
+            params={'token': f'eq.{token}'}
+        )
+        response.raise_for_status()
+        print(f"🗑️  已删除失效 token: {token[:20]}...")
+        
+    except Exception as e:
+        print(f"❌ 删除失效 token 失败: {e}")
+
+
 def send_push_notification(
     tokens: List[str],
     title: str,
@@ -150,13 +178,22 @@ def send_push_notification(
             failure_count += 1
             failed_tokens.append(token)
             
-            # Log specific error types
+            # Check if token is invalid and should be deleted
+            should_delete = False
+            
             if 'not a valid FCM registration token' in error_msg:
                 print(f"   → Token is invalid or expired")
+                should_delete = True
             elif 'Requested entity was not found' in error_msg:
                 print(f"   → Token was not found (may have been unregistered)")
+                should_delete = True
             elif 'SenderId mismatch' in error_msg:
                 print(f"   → Token belongs to different Firebase project")
+                should_delete = True
+            
+            # Delete invalid token from database
+            if should_delete:
+                delete_invalid_token(token)
     
     print(f"✅ Successfully sent {success_count} messages")
     if failure_count > 0:
