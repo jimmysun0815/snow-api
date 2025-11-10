@@ -62,8 +62,19 @@ class DatabaseManager:
                 )
                 self.session.add(resort)
             else:
-                # 更新雪场基本信息
+                # 更新雪场基本信息（包括联系信息）
                 resort.updated_at = datetime.now()
+                # 更新联系信息（如果 normalized_data 中有）
+                if 'address' in normalized_data:
+                    resort.address = normalized_data.get('address')
+                if 'city' in normalized_data:
+                    resort.city = normalized_data.get('city')
+                if 'zip_code' in normalized_data:
+                    resort.zip_code = normalized_data.get('zip_code')
+                if 'phone' in normalized_data:
+                    resort.phone = normalized_data.get('phone')
+                if 'website' in normalized_data:
+                    resort.website = normalized_data.get('website')
             
             # 2. 保存雪况数据
             condition = ResortCondition(
@@ -191,6 +202,12 @@ class DatabaseManager:
                     'max': resort.elevation_max,
                     'vertical': (resort.elevation_max or 0) - (resort.elevation_min or 0)
                 } if resort.elevation_min and resort.elevation_max else None,
+                # 联系信息
+                'address': resort.address,
+                'city': resort.city,
+                'zip_code': resort.zip_code,
+                'phone': resort.phone,
+                'website': resort.website,
             }
             
             # 添加雪况数据

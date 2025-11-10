@@ -1786,36 +1786,6 @@
       "notes": "温哥华岛"
     },
     {
-      "id": 601,
-      "name": "Grouse Mountain",
-      "slug": "grouse-mountain",
-      "location": "British Columbia, Canada",
-      "lat": 49.3789,
-      "lon": -123.0814,
-      "elevation_min": 884,
-      "elevation_max": 1250,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/british-columbia/grouse-mountain/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "温哥华市区可见"
-    },
-    {
-      "id": 602,
-      "name": "Cypress Mountain",
-      "slug": "cypress-mountain",
-      "location": "British Columbia, Canada",
-      "lat": 49.3958,
-      "lon": -123.2064,
-      "elevation_min": 914,
-      "elevation_max": 1440,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/british-columbia/cypress-mountain/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "2010冬奥会自由式"
-    },
-    {
       "id": 603,
       "name": "Mount Seymour",
       "slug": "mount-seymour",
@@ -1966,21 +1936,6 @@
       "notes": "Robert Redford度假村"
     },
     {
-      "id": 632,
-      "name": "Snowbird",
-      "slug": "snowbird",
-      "location": "Utah, USA",
-      "lat": 40.5833,
-      "lon": -111.6519,
-      "elevation_min": 2365,
-      "elevation_max": 3353,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/utah/snowbird/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "粉雪专家级"
-    },
-    {
       "id": 640,
       "name": "Copper Mountain",
       "slug": "copper-mountain-resort",
@@ -2009,21 +1964,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "豪华度假村"
-    },
-    {
-      "id": 642,
-      "name": "Keystone",
-      "slug": "keystone",
-      "location": "Colorado, USA",
-      "lat": 39.5789,
-      "lon": -105.9347,
-      "elevation_min": 2835,
-      "elevation_max": 3782,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/colorado/keystone/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "夜场滑雪"
     },
     {
       "id": 643,
@@ -2056,36 +1996,6 @@
       "notes": "纯专家级，需导游"
     },
     {
-      "id": 650,
-      "name": "Aspen Snowmass",
-      "slug": "aspen-snowmass",
-      "location": "Colorado, USA",
-      "lat": 39.2131,
-      "lon": -106.9378,
-      "elevation_min": 2399,
-      "elevation_max": 3813,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/colorado/aspen-snowmass/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "综合度假区，包含4座山：Snowmass, Aspen Mountain, Aspen Highlands, Buttermilk。共41条缆车，366条雪道"
-    },
-    {
-      "id": 660,
-      "name": "Mammoth Mountain",
-      "slug": "mammoth-mountain",
-      "location": "California, USA",
-      "lat": 37.6308,
-      "lon": -119.0325,
-      "elevation_min": 2424,
-      "elevation_max": 3369,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/california/mammoth-mountain-ski-area/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "加州最大"
-    },
-    {
       "id": 661,
       "name": "Heavenly",
       "slug": "heavenly",
@@ -2099,21 +2009,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "太浩湖景观"
-    },
-    {
-      "id": 662,
-      "name": "Northstar",
-      "slug": "northstar-california",
-      "location": "California, USA",
-      "lat": 39.2731,
-      "lon": -120.1214,
-      "elevation_min": 1920,
-      "elevation_max": 2624,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/california/northstar-california/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "家庭度假村"
     },
     {
       "id": 670,
@@ -2221,21 +2116,6 @@
       "notes": "Spokane州立公园"
     },
     {
-      "id": 700,
-      "name": "Taos",
-      "slug": "taos-ski-valley",
-      "location": "New Mexico, USA",
-      "lat": 36.5917,
-      "lon": -105.4467,
-      "elevation_min": 2804,
-      "elevation_max": 3658,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-mexico/taos-ski-valley/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "新墨西哥最佳"
-    },
-    {
       "id": 710,
       "name": "Mt. Rose",
       "slug": "mount-rose-ski-tahoe",
@@ -2341,21 +2221,6 @@
       "notes": "滑雪者合作社"
     },
     {
-      "id": 751,
-      "name": "Sugarbush",
-      "slug": "sugarbush",
-      "location": "Vermont, USA",
-      "lat": 44.1369,
-      "lon": -72.9017,
-      "elevation_min": 305,
-      "elevation_max": 1244,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/vermont/sugarbush/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "Vermont顶级雪场"
-    },
-    {
       "id": 800,
       "name": "Alyeska Resort",
       "slug": "alyeska-resort",
@@ -2380,7 +2245,7 @@
       "elevation_min": 0,
       "elevation_max": 792,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/alaska/eaglecrest/skireport",
+      "source_url": "https://www.onthesnow.com/alaska/eaglecrest-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "朱诺"
@@ -2440,7 +2305,7 @@
       "elevation_min": 198,
       "elevation_max": 457,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/pennsylvania/shawnee-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/pennsylvania/shawnee-mountain-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "波科诺山区"
@@ -2500,7 +2365,7 @@
       "elevation_min": 320,
       "elevation_max": 405,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/ohio/boston-mills-brandywine/skireport",
+      "source_url": "https://www.onthesnow.com/ohio/boston-mills/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "克利夫兰附近"
@@ -2521,21 +2386,6 @@
       "notes": "俄亥俄中部"
     },
     {
-      "id": 840,
-      "name": "Nub's Nob",
-      "slug": "nubs-nob",
-      "location": "Michigan, USA",
-      "lat": 45.4489,
-      "lon": -84.9106,
-      "elevation_min": 274,
-      "elevation_max": 366,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/michigan/nubs-nob/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "密歇根北部"
-    },
-    {
       "id": 841,
       "name": "Crystal Mountain MI",
       "slug": "crystal-mountain-mi",
@@ -2545,14 +2395,14 @@
       "elevation_min": 311,
       "elevation_max": 478,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/michigan/crystal-mountain-michigan/skireport",
+      "source_url": "https://www.onthesnow.com/michigan/crystal-mountain/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "特拉弗斯城"
     },
     {
       "id": 842,
-      "name": "Big Snow Resort",
+      "name": "Snowriver Mountain Resort Snow Report",
       "slug": "big-snow-resort",
       "location": "Michigan, USA",
       "lat": 46.8167,
@@ -2560,7 +2410,7 @@
       "elevation_min": 457,
       "elevation_max": 620,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/michigan/big-snow-resort/skireport",
+      "source_url": "https://www.onthesnow.com/michigan/snowriver-mountain-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "上半岛"
@@ -2620,7 +2470,7 @@
       "elevation_min": 274,
       "elevation_max": 396,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/wisconsin/devils-head-resort/skireport",
+      "source_url": "https://www.onthesnow.com/wisconsin/devils-head/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "威斯康星德尔斯"
@@ -2650,14 +2500,14 @@
       "elevation_min": 425,
       "elevation_max": 527,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/minnesota/giants-ridge/skireport",
+      "source_url": "https://www.onthesnow.com/minnesota/giants-ridge-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "明尼苏达北部"
     },
     {
       "id": 870,
-      "name": "Mount Abram",
+      "name": "Mt. Abram Ski Resort Snow Report",
       "slug": "mount-abram",
       "location": "Maine, USA",
       "lat": 44.3333,
@@ -2665,7 +2515,7 @@
       "elevation_min": 305,
       "elevation_max": 549,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/maine/mount-abram/skireport",
+      "source_url": "https://www.onthesnow.com/maine/mt-abram-ski-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "缅因西部"
@@ -2740,7 +2590,7 @@
       "elevation_min": 305,
       "elevation_max": 610,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-hampshire/cranmore/skireport",
+      "source_url": "https://www.onthesnow.com/new-hampshire/cranmore-mountain-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "北康威"
@@ -2800,7 +2650,7 @@
       "elevation_min": 305,
       "elevation_max": 1067,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/vermont/smugglers-notch/skireport",
+      "source_url": "https://www.onthesnow.com/vermont/smugglers-notch-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "家庭度假村"
@@ -2830,7 +2680,7 @@
       "elevation_min": 610,
       "elevation_max": 1195,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/vermont/pico-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/vermont/pico-mountain-at-killington/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "基灵顿附近"
@@ -2875,7 +2725,7 @@
       "elevation_min": 427,
       "elevation_max": 579,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-york/swain-resort/skireport",
+      "source_url": "https://www.onthesnow.com/new-york/swain/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "纽约西部"
@@ -2890,7 +2740,7 @@
       "elevation_min": 427,
       "elevation_max": 564,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-york/peek-n-peak/skireport",
+      "source_url": "https://www.onthesnow.com/new-york/peekn-peak/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "纽约-宾州边界"
@@ -2986,21 +2836,6 @@
       "notes": "大章克申"
     },
     {
-      "id": 934,
-      "name": "Hesperus",
-      "slug": "hesperus",
-      "location": "Colorado, USA",
-      "lat": 37.3333,
-      "lon": -108.0833,
-      "elevation_min": 2621,
-      "elevation_max": 3048,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/colorado/hesperus/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "杜兰戈附近"
-    },
-    {
       "id": 940,
       "name": "Eagle Point",
       "slug": "eagle-point",
@@ -3010,7 +2845,7 @@
       "elevation_min": 2438,
       "elevation_max": 3109,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/utah/eagle-point-resort/skireport",
+      "source_url": "https://www.onthesnow.com/utah/eagle-point/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "犹他州南部"
@@ -3025,7 +2860,7 @@
       "elevation_min": 2987,
       "elevation_max": 3353,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/utah/brian-head/skireport",
+      "source_url": "https://www.onthesnow.com/utah/brian-head-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "南犹他最大"
@@ -3040,25 +2875,10 @@
       "elevation_min": 1683,
       "elevation_max": 2164,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/utah/nordic-valley/skireport",
+      "source_url": "https://www.onthesnow.com/utah/wolf-creek/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "奥格登附近"
-    },
-    {
-      "id": 943,
-      "name": "Cherry Peak",
-      "slug": "cherry-peak",
-      "location": "Utah, USA",
-      "lat": 41.5833,
-      "lon": -111.9667,
-      "elevation_min": 1859,
-      "elevation_max": 2286,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/utah/cherry-peak-resort/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "里士满"
     },
     {
       "id": 950,
@@ -3115,7 +2935,7 @@
       "elevation_min": 1372,
       "elevation_max": 1768,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/idaho/lookout-pass/skireport",
+      "source_url": "https://www.onthesnow.com/idaho/lookout-pass-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "蒙大拿-爱达荷边界"
@@ -3145,7 +2965,7 @@
       "elevation_min": 1829,
       "elevation_max": 2347,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/idaho/brundage-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/idaho/brundage-mountain-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "麦考尔"
@@ -3160,7 +2980,7 @@
       "elevation_min": 2438,
       "elevation_max": 2896,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/idaho/pomerelle/skireport",
+      "source_url": "https://www.onthesnow.com/idaho/pomerelle-mountain-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "伯利附近"
@@ -3175,7 +2995,7 @@
       "elevation_min": 1920,
       "elevation_max": 2377,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/idaho/soldier-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/idaho/soldier-mountain-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "费尔菲尔德"
@@ -3190,40 +3010,10 @@
       "elevation_min": 914,
       "elevation_max": 1615,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/washington/summit-at-snoqualmie/skireport",
+      "source_url": "https://www.onthesnow.com/washington/the-summit-at-snoqualmie/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "西雅图附近"
-    },
-    {
-      "id": 971,
-      "name": "Hurricane Ridge",
-      "slug": "hurricane-ridge",
-      "location": "Washington, USA",
-      "lat": 47.9667,
-      "lon": -123.4333,
-      "elevation_min": 1585,
-      "elevation_max": 1646,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/washington/hurricane-ridge/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "奥林匹克国家公园"
-    },
-    {
-      "id": 972,
-      "name": "Loup Loup",
-      "slug": "loup-loup",
-      "location": "Washington, USA",
-      "lat": 48.4,
-      "lon": -119.8833,
-      "elevation_min": 1280,
-      "elevation_max": 1524,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/washington/loup-loup/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "华盛顿中部"
     },
     {
       "id": 980,
@@ -3235,7 +3025,7 @@
       "elevation_min": 1341,
       "elevation_max": 1676,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/oregon/hoodoo/skireport",
+      "source_url": "https://www.onthesnow.com/oregon/hoodoo-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "桑蒂亚姆山口"
@@ -3250,7 +3040,7 @@
       "elevation_min": 1981,
       "elevation_max": 2286,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/oregon/mt-ashland/skireport",
+      "source_url": "https://www.onthesnow.com/oregon/mount-ashland/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "俄勒冈南部"
@@ -3265,7 +3055,7 @@
       "elevation_min": 1128,
       "elevation_max": 1554,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/oregon/mt-hood-skibowl/skireport",
+      "source_url": "https://www.onthesnow.com/oregon/mt-hood-ski-bowl/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "夜滑"
@@ -3280,25 +3070,10 @@
       "elevation_min": 2164,
       "elevation_max": 2591,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/california/china-peak/skireport",
+      "source_url": "https://www.onthesnow.com/california/ski-china-peak/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "弗雷斯诺附近"
-    },
-    {
-      "id": 991,
-      "name": "Badger Pass",
-      "slug": "badger-pass",
-      "location": "California, USA",
-      "lat": 37.6667,
-      "lon": -119.6667,
-      "elevation_min": 2164,
-      "elevation_max": 2469,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/california/yosemite-ski-badger-pass/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "优胜美地国家公园"
     },
     {
       "id": 992,
@@ -3310,7 +3085,7 @@
       "elevation_min": 1676,
       "elevation_max": 2591,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/california/mt-shasta-ski-park/skireport",
+      "source_url": "https://www.onthesnow.com/california/mount-shasta-board-ski-park/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "北加州"
@@ -3325,7 +3100,7 @@
       "elevation_min": 1920,
       "elevation_max": 2438,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/california/homewood/skireport",
+      "source_url": "http://onthesnow.com/california/homewood-mountain-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "太浩湖西岸"
@@ -3361,36 +3136,6 @@
       "notes": "拉斯维加斯附近"
     },
     {
-      "id": 1001,
-      "name": "Sky Tavern",
-      "slug": "sky-tavern",
-      "location": "Nevada, USA",
-      "lat": 39.3167,
-      "lon": -119.9,
-      "elevation_min": 2134,
-      "elevation_max": 2438,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/nevada/sky-tavern/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "里诺附近"
-    },
-    {
-      "id": 1010,
-      "name": "Angel Fire Resort",
-      "slug": "angel-fire-resort",
-      "location": "New Mexico, USA",
-      "lat": 36.4,
-      "lon": -105.2833,
-      "elevation_min": 2621,
-      "elevation_max": 3230,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-mexico/angel-fire-resort/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "新墨西哥北部"
-    },
-    {
       "id": 1011,
       "name": "Pajarito",
       "slug": "pajarito",
@@ -3400,7 +3145,7 @@
       "elevation_min": 2987,
       "elevation_max": 3231,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-mexico/pajarito-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/new-mexico/pajarito-mountain-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "洛斯阿拉莫斯"
@@ -3415,7 +3160,7 @@
       "elevation_min": 2621,
       "elevation_max": 2896,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-mexico/sipapu/skireport",
+      "source_url": "https://www.onthesnow.com/new-mexico/sipapu-ski-and-summer-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "陶斯附近"
@@ -3430,7 +3175,7 @@
       "elevation_min": 1920,
       "elevation_max": 2438,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/wyoming/snow-king/skireport",
+      "source_url": "https://www.onthesnow.com/wyoming/snow-king-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "杰克逊市区"
@@ -3445,7 +3190,7 @@
       "elevation_min": 2621,
       "elevation_max": 2926,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/wyoming/sleeping-giant-ski-area/skireport",
+      "source_url": "https://www.onthesnow.com/wyoming/sleeping-giant-ski-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "科迪"
@@ -3520,25 +3265,10 @@
       "elevation_min": 1036,
       "elevation_max": 1189,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/west-virginia/winterplace/skireport",
+      "source_url": "https://www.onthesnow.com/west-virginia/winterplace-ski-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "南西弗吉尼亚"
-    },
-    {
-      "id": 1100,
-      "name": "Muskoka Ski Club",
-      "slug": "muskoka-ski-club",
-      "location": "Ontario, Canada",
-      "lat": 45.0333,
-      "lon": -79.2167,
-      "elevation_min": 244,
-      "elevation_max": 335,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/ontario/muskoka-ski-club/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "穆斯科卡"
     },
     {
       "id": 1101,
@@ -3550,7 +3280,7 @@
       "elevation_min": 213,
       "elevation_max": 366,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/ontario/mount-st-louis-moonstone/skireport",
+      "source_url": "https://www.onthesnow.com/ontario/mt-st-louis-moonstone/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "多伦多北"
@@ -3580,7 +3310,7 @@
       "elevation_min": 122,
       "elevation_max": 198,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/ontario/mount-pakenham/skireport",
+      "source_url": "https://www.onthesnow.com/ontario/mt-pakenham/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "渥太华附近"
@@ -3646,51 +3376,6 @@
       "notes": "劳伦山"
     },
     {
-      "id": 1114,
-      "name": "Ski Garceau",
-      "slug": "ski-garceau",
-      "location": "Quebec, Canada",
-      "lat": 45.7667,
-      "lon": -73.5833,
-      "elevation_min": 122,
-      "elevation_max": 213,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/quebec/ski-garceau/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "蒙特利尔附近"
-    },
-    {
-      "id": 1120,
-      "name": "Lake Louise",
-      "slug": "lake-louise",
-      "location": "Alberta, Canada",
-      "lat": 51.4333,
-      "lon": -116.1667,
-      "elevation_min": 1646,
-      "elevation_max": 2637,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/alberta/lake-louise/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "班夫国家公园"
-    },
-    {
-      "id": 1121,
-      "name": "Fortress Mountain",
-      "slug": "fortress-mountain",
-      "location": "Alberta, Canada",
-      "lat": 50.8333,
-      "lon": -115.2,
-      "elevation_min": 1890,
-      "elevation_max": 2438,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/alberta/fortress-mountain/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "卡纳纳斯基斯"
-    },
-    {
       "id": 1130,
       "name": "Whitewater",
       "slug": "whitewater-bc",
@@ -3721,36 +3406,6 @@
       "notes": "史密瑟斯"
     },
     {
-      "id": 1132,
-      "name": "Harper Mountain",
-      "slug": "harper-mountain",
-      "location": "British Columbia, Canada",
-      "lat": 50.8167,
-      "lon": -120.0167,
-      "elevation_min": 1372,
-      "elevation_max": 1676,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/british-columbia/harper-mountain/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "坎卢普斯"
-    },
-    {
-      "id": 1133,
-      "name": "Phoenix Mountain",
-      "slug": "phoenix-mountain",
-      "location": "British Columbia, Canada",
-      "lat": 49.0833,
-      "lon": -118.2,
-      "elevation_min": 1280,
-      "elevation_max": 1646,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/british-columbia/phoenix-mountain/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "大福克斯"
-    },
-    {
       "id": 1134,
       "name": "Manning Park",
       "slug": "manning-park",
@@ -3760,7 +3415,7 @@
       "elevation_min": 1372,
       "elevation_max": 1646,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/british-columbia/manning-park/skireport",
+      "source_url": "https://www.onthesnow.com/british-columbia/manning-park-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "曼宁省立公园"
@@ -3775,25 +3430,10 @@
       "elevation_min": 1067,
       "elevation_max": 1372,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/british-columbia/hemlock-valley/skireport",
+      "source_url": "https://www.onthesnow.com/british-columbia/hemlock-valley-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "温哥华东部"
-    },
-    {
-      "id": 1140,
-      "name": "Table Top Mountain",
-      "slug": "table-top-mountain",
-      "location": "Saskatchewan, Canada",
-      "lat": 53.1667,
-      "lon": -105.3333,
-      "elevation_min": 488,
-      "elevation_max": 579,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/saskatchewan/table-mountain/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "北萨斯喀彻温"
     },
     {
       "id": 1141,
@@ -3809,36 +3449,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "韦伯恩"
-    },
-    {
-      "id": 1150,
-      "name": "Stoneridge",
-      "slug": "stoneridge",
-      "location": "Manitoba, Canada",
-      "lat": 49.8667,
-      "lon": -99.95,
-      "elevation_min": 244,
-      "elevation_max": 305,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/manitoba/stoneridge/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "布兰登"
-    },
-    {
-      "id": 1151,
-      "name": "Asessippi",
-      "slug": "asessippi",
-      "location": "Manitoba, Canada",
-      "lat": 51.0167,
-      "lon": -101.1333,
-      "elevation_min": 366,
-      "elevation_max": 488,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/manitoba/asessippi/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "拉塞尔"
     },
     {
       "id": 1160,
@@ -3910,7 +3520,7 @@
       "elevation_min": 152,
       "elevation_max": 244,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/connecticut/powder-ridge/skireport",
+      "source_url": "https://www.onthesnow.com/connecticut/powder-ridge-park/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "米德尔菲尔德"
@@ -3925,7 +3535,7 @@
       "elevation_min": 366,
       "elevation_max": 640,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/massachusetts/wachusett-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/massachusetts/wachusett-mountain-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "波士顿附近"
@@ -3970,7 +3580,7 @@
       "elevation_min": 366,
       "elevation_max": 610,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/massachusetts/catamount/skireport",
+      "source_url": "https://www.onthesnow.com/new-york/catamount-ski-ride-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "伯克郡"
@@ -3985,7 +3595,7 @@
       "elevation_min": 366,
       "elevation_max": 579,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/massachusetts/butternut/skireport",
+      "source_url": "https://www.onthesnow.com/massachusetts/ski-butternut/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "大巴灵顿"
@@ -4000,7 +3610,7 @@
       "elevation_min": 427,
       "elevation_max": 579,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/massachusetts/blandford/skireport",
+      "source_url": "https://www.onthesnow.com/massachusetts/blandford-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "布兰福德"
@@ -4030,7 +3640,7 @@
       "elevation_min": 457,
       "elevation_max": 640,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-york/mccauley-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/new-york/mccauley-mountain-ski-center/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "奥尔德福奇"
@@ -4060,7 +3670,7 @@
       "elevation_min": 366,
       "elevation_max": 488,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-york/royal-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/new-york/royal-mountain-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "约翰斯敦"
@@ -4079,21 +3689,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "哈里斯堡附近"
-    },
-    {
-      "id": 1221,
-      "name": "Liberty Mountain",
-      "slug": "liberty-mountain",
-      "location": "Pennsylvania, USA",
-      "lat": 39.75,
-      "lon": -77.3167,
-      "elevation_min": 213,
-      "elevation_max": 396,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/pennsylvania/liberty-mountain-resort/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "费尔菲尔德"
     },
     {
       "id": 1222,
@@ -4120,7 +3715,7 @@
       "elevation_min": 884,
       "elevation_max": 1006,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/maryland/wisp-resort/skireport",
+      "source_url": "https://www.onthesnow.com/maryland/wisp/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "马里兰州唯一"
@@ -4157,7 +3752,7 @@
     },
     {
       "id": 1250,
-      "name": "Wolf Ridge",
+      "name": "Hatley Pointe Snow Report",
       "slug": "wolf-ridge",
       "location": "North Carolina, USA",
       "lat": 36.1167,
@@ -4165,7 +3760,7 @@
       "elevation_min": 1128,
       "elevation_max": 1372,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/north-carolina/wolf-ridge/skireport",
+      "source_url": "https://www.onthesnow.com/north-carolina/wolf-ridge-ski-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "马斯山"
@@ -4187,7 +3782,7 @@
     },
     {
       "id": 1260,
-      "name": "Gatlinburg Sky Lift Park",
+      "name": "Ober Mountain Ski Area & Adventure Park Snow Report",
       "slug": "gatlinburg-sky-lift",
       "location": "Tennessee, USA",
       "lat": 35.7167,
@@ -4195,7 +3790,7 @@
       "elevation_min": 457,
       "elevation_max": 549,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/tennessee/ober-gatlinburg/skireport",
+      "source_url": "https://www.onthesnow.com/tennessee/ober-gatlinburg-ski-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "田纳西"
@@ -4231,21 +3826,6 @@
       "notes": "辛辛那提附近"
     },
     {
-      "id": 1272,
-      "name": "Ski World",
-      "slug": "ski-world",
-      "location": "Indiana, USA",
-      "lat": 39.9667,
-      "lon": -86.5833,
-      "elevation_min": 244,
-      "elevation_max": 290,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/indiana/ski-world/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "印第安纳波利斯附近"
-    },
-    {
       "id": 1280,
       "name": "Villa Olivia",
       "slug": "villa-olivia",
@@ -4270,7 +3850,7 @@
       "elevation_min": 183,
       "elevation_max": 305,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/illinois/chestnut-mountain/skireport",
+      "source_url": "https://www.onthesnow.com/illinois/chestnut-mountain-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "加利纳"
@@ -4375,25 +3955,10 @@
       "elevation_min": 244,
       "elevation_max": 335,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/michigan/pine-knob/skireport",
+      "source_url": "https://www.onthesnow.com/michigan/pine-knob-ski-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "底特律附近"
-    },
-    {
-      "id": 1320,
-      "name": "Cochran's",
-      "slug": "cochrans",
-      "location": "Vermont, USA",
-      "lat": 44.4667,
-      "lon": -72.9333,
-      "elevation_min": 305,
-      "elevation_max": 427,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/vermont/cochrans/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "里士满"
     },
     {
       "id": 1321,
@@ -4405,40 +3970,10 @@
       "elevation_min": 366,
       "elevation_max": 488,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/vermont/saskadena-six/skireport",
+      "source_url": "https://www.onthesnow.com/vermont/suicide-six/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "东北王国"
-    },
-    {
-      "id": 1330,
-      "name": "Eaglebrook School",
-      "slug": "eaglebrook",
-      "location": "Massachusetts, USA",
-      "lat": 42.4833,
-      "lon": -72.5667,
-      "elevation_min": 213,
-      "elevation_max": 305,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/massachusetts/eaglebrook/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "迪尔菲尔德"
-    },
-    {
-      "id": 1340,
-      "name": "Cochran's Ski Area",
-      "slug": "cochrans-nh",
-      "location": "New Hampshire, USA",
-      "lat": 43.5167,
-      "lon": -71.6333,
-      "elevation_min": 244,
-      "elevation_max": 335,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/new-hampshire/cochrans/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "里士满"
     },
     {
       "id": 1350,
@@ -4469,21 +4004,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "马奎特"
-    },
-    {
-      "id": 1370,
-      "name": "Wintergreen Resort",
-      "slug": "wintergreen-resort",
-      "location": "Virginia, USA",
-      "lat": 37.9167,
-      "lon": -78.9167,
-      "elevation_min": 701,
-      "elevation_max": 1067,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/virginia/wintergreen-resort/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "夏洛茨维尔附近"
     },
     {
       "id": 1380,
@@ -4525,25 +4045,10 @@
       "elevation_min": 2134,
       "elevation_max": 2286,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/south-dakota/terry-peak/skireport",
+      "source_url": "https://www.onthesnow.com/south-dakota/terry-peak-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "南达科他州"
-    },
-    {
-      "id": 1383,
-      "name": "Deer Mountain",
-      "slug": "deer-mountain-sd",
-      "location": "South Dakota, USA",
-      "lat": 44.3667,
-      "lon": -103.7167,
-      "elevation_min": 1920,
-      "elevation_max": 2073,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/south-dakota/deer-mountain/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "黑山"
     },
     {
       "id": 1384,
@@ -4570,40 +4075,10 @@
       "elevation_min": 335,
       "elevation_max": 396,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/nebraska/mount-crescent/skireport",
+      "source_url": "https://www.onthesnow.com/iowa/mt-crescent-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "奥马哈附近"
-    },
-    {
-      "id": 1387,
-      "name": "Huff Hills",
-      "slug": "huff-hills",
-      "location": "North Dakota, USA",
-      "lat": 46.8,
-      "lon": -100.8,
-      "elevation_min": 488,
-      "elevation_max": 549,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/north-dakota/huff-hills/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "曼丹"
-    },
-    {
-      "id": 1388,
-      "name": "Ski Sunrise",
-      "slug": "ski-sunrise",
-      "location": "California, USA",
-      "lat": 38.5167,
-      "lon": -120.1333,
-      "elevation_min": 2012,
-      "elevation_max": 2316,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/california/ski-sunrise/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "太浩湖附近"
     },
     {
       "id": 1389,
@@ -4630,7 +4105,7 @@
       "elevation_min": 1128,
       "elevation_max": 1554,
       "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/oregon/ski-bowl/skireport",
+      "source_url": "https://www.onthesnow.com/oregon/mt-hood-ski-bowl/skireport",
       "enabled": true,
       "update_interval": 10800,
       "notes": "Hood山"

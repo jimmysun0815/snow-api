@@ -122,6 +122,17 @@ class DataMonitor:
                 else:
                     return FieldCheck(field_name, 'error', value, '温度超出合理范围')
             
+            # 冰冻线字段特殊处理：0 表示地面冰冻，是正常值
+            if 'freezing_level' in field_key.lower():
+                # 冰冻线合理范围：0米（地面冰冻）到 6000米（高海拔）
+                if 0 <= value <= 6000:
+                    if value == 0:
+                        return FieldCheck(field_name, 'success', value, '地面冰冻（正常）')
+                    else:
+                        return FieldCheck(field_name, 'success', value, '数据正常')
+                else:
+                    return FieldCheck(field_name, 'warning', value, '冰冻线超出常见范围')
+            
             # 一般数值字段检查
             if value == 0:
                 return FieldCheck(field_name, 'warning', value, '数值为 0')

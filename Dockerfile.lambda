@@ -1,0 +1,14 @@
+FROM amazonlinux:2
+
+RUN yum install -y python3 python3-pip gcc python3-devel postgresql-devel zip && \
+    yum clean all
+
+WORKDIR /build
+
+COPY trails_lambda_package/requirements_temp.txt /build/requirements.txt
+
+RUN pip3 install -r requirements.txt -t /build/python/ && \
+    cd /build && \
+    rm -rf python/*.dist-info python/__pycache__
+
+CMD ["bash"]

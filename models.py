@@ -23,6 +23,14 @@ class Resort(Base):
     elevation_min = Column(Integer)
     elevation_max = Column(Integer)
     boundary = Column(JSON)  # 雪场边界多边形坐标 [[lon, lat], ...]
+    
+    # 联系信息
+    address = Column(String(500))  # 街道地址
+    city = Column(String(200))  # 城市
+    zip_code = Column(String(50))  # 邮编
+    phone = Column(String(100))  # 电话
+    website = Column(Text)  # 官网
+    
     data_source = Column(String(50))
     source_url = Column(Text)
     source_id = Column(String(100))

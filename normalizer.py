@@ -107,10 +107,28 @@ class DataNormalizer:
         temp_max = weather_temp.get('max', 0)
         avg_temp = (temp_min + temp_max) / 2 if temp_min and temp_max else 0
         
-        # 辅助函数：处理 None 值
-        def handle_none(value):
-            """如果是 None 保留 None，否则返回数值（0作为默认值）"""
-            return value if value is not None else None
+        # 辅助函数：处理 None 值和无效字符串
+        def handle_none_as_zero(value):
+            """如果是 None 或无效字符串（如'--'）返回 0，否则返回数值"""
+            if value is None:
+                return 0
+            if isinstance(value, str) and (value.strip() == '--' or value.strip() == ''):
+                return 0
+            try:
+                return float(value) if value else 0
+            except (ValueError, TypeError):
+                return 0
+        
+        def handle_none_preserve(value):
+            """如果是 None 或无效字符串（如'--'）保留 None，否则返回数值（用于积雪深度等可选数据）"""
+            if value is None:
+                return None
+            if isinstance(value, str) and (value.strip() == '--' or value.strip() == ''):
+                return None
+            try:
+                return float(value) if value else None
+            except (ValueError, TypeError):
+                return None
         
         return {
             'resort_id': resort_config.get('id'),
@@ -121,13 +139,13 @@ class DataNormalizer:
             'lon': full_resort.get('longitude') or resort_config.get('lon'),
             'status': status,
             'new_snow': snow.get('last24') or 0,
-            'base_depth': handle_none(base_depth),
-            'snow_base': handle_none(base_depth),  # 兼容字段
-            'snow_summit': handle_none(summit_depth),  # 兼容字段
-            'lifts_open': handle_none(lifts.get('open')),
-            'lifts_total': handle_none(lifts.get('total')),
-            'trails_open': handle_none(runs.get('open')),
-            'trails_total': handle_none(runs.get('total')),
+            'base_depth': handle_none_preserve(base_depth),
+            'snow_base': handle_none_preserve(base_depth),  # 兼容字段
+            'snow_summit': handle_none_preserve(summit_depth),  # 兼容字段
+            'lifts_open': handle_none_as_zero(lifts.get('open')),
+            'lifts_total': handle_none_as_zero(lifts.get('total')),
+            'trails_open': handle_none_as_zero(runs.get('open')),
+            'trails_total': handle_none_as_zero(runs.get('total')),
             'temperature': round(avg_temp, 1) if avg_temp else None,
             'last_update': datetime.now().isoformat(),
             'source': resort_config.get('source_url'),
@@ -135,6 +153,12 @@ class DataNormalizer:
             # 额外信息
             'opening_date': status_info.get('openingDate'),
             'closing_date': status_info.get('closingDate'),
+            # 联系信息
+            'address': full_resort.get('physicalAddress'),
+            'city': full_resort.get('physicalCity'),
+            'zip_code': full_resort.get('zip'),
+            'phone': full_resort.get('phone'),
+            'website': full_resort.get('website'),
         }
     
     @staticmethod
