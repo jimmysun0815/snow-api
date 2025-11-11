@@ -254,18 +254,37 @@ jobs:
           
           # 更新 Notification Handler 环境变量
           echo "🔧 更新 Notification Handler 环境变量..."
+          
+          cat > env_handler.json << 'EOF'
+{
+  "Variables": {
+    "SUPABASE_URL": "$SUPABASE_URL",
+    "SUPABASE_SERVICE_KEY": "$SUPABASE_SERVICE_KEY",
+    "FIREBASE_PROJECT_ID": "$FIREBASE_PROJECT_ID",
+    "FIREBASE_PRIVATE_KEY_ID": "$FIREBASE_PRIVATE_KEY_ID",
+    "FIREBASE_PRIVATE_KEY": "$FIREBASE_PRIVATE_KEY",
+    "FIREBASE_CLIENT_EMAIL": "$FIREBASE_CLIENT_EMAIL",
+    "FIREBASE_CLIENT_ID": "$FIREBASE_CLIENT_ID"
+  }
+}
+EOF
+          
+          export SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+          export SUPABASE_SERVICE_KEY="${{ secrets.SUPABASE_SERVICE_KEY }}"
+          export FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}"
+          export FIREBASE_PRIVATE_KEY_ID="${{ secrets.FIREBASE_PRIVATE_KEY_ID }}"
+          export FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          export FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}"
+          export FIREBASE_CLIENT_ID="${{ secrets.FIREBASE_CLIENT_ID }}"
+          
+          envsubst < env_handler.json > env_handler_final.json
+          
           aws lambda update-function-configuration \
             --function-name resort-data-notification-handler \
-            --environment "Variables={
-              SUPABASE_URL=${{ secrets.SUPABASE_URL }},
-              SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }},
-              FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},
-              FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }},
-              FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }},
-              FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }},
-              FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}
-            }" \
+            --environment file://env_handler_final.json \
             --region ${{ env.AWS_REGION }}
+          
+          rm env_handler.json env_handler_final.json
           
           echo "✅ Notification Handler 环境变量更新完成"
           echo "⏳ 等待更新完成..."
@@ -273,22 +292,45 @@ jobs:
           
           # 更新 Snow Checker 环境变量
           echo "🔧 更新 Snow Checker 环境变量..."
+          
+          cat > env_snow.json << 'EOF'
+{
+  "Variables": {
+    "DB_HOST": "$DB_HOST",
+    "DB_NAME": "$DB_NAME",
+    "DB_USER": "$DB_USER",
+    "DB_PASSWORD": "$DB_PASSWORD",
+    "REDIS_HOST": "$REDIS_HOST",
+    "REDIS_PORT": "$REDIS_PORT",
+    "FIREBASE_PROJECT_ID": "$FIREBASE_PROJECT_ID",
+    "FIREBASE_PRIVATE_KEY_ID": "$FIREBASE_PRIVATE_KEY_ID",
+    "FIREBASE_PRIVATE_KEY": "$FIREBASE_PRIVATE_KEY",
+    "FIREBASE_CLIENT_EMAIL": "$FIREBASE_CLIENT_EMAIL",
+    "FIREBASE_CLIENT_ID": "$FIREBASE_CLIENT_ID"
+  }
+}
+EOF
+          
+          export DB_HOST="${{ secrets.DB_HOST }}"
+          export DB_NAME="${{ secrets.DB_NAME }}"
+          export DB_USER="${{ secrets.DB_USER }}"
+          export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+          export REDIS_HOST="${{ secrets.REDIS_HOST }}"
+          export REDIS_PORT="${{ secrets.REDIS_PORT }}"
+          export FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}"
+          export FIREBASE_PRIVATE_KEY_ID="${{ secrets.FIREBASE_PRIVATE_KEY_ID }}"
+          export FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          export FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}"
+          export FIREBASE_CLIENT_ID="${{ secrets.FIREBASE_CLIENT_ID }}"
+          
+          envsubst < env_snow.json > env_snow_final.json
+          
           aws lambda update-function-configuration \
             --function-name resort-data-snow-checker \
-            --environment "Variables={
-              DB_HOST=${{ secrets.DB_HOST }},
-              DB_NAME=${{ secrets.DB_NAME }},
-              DB_USER=${{ secrets.DB_USER }},
-              DB_PASSWORD=${{ secrets.DB_PASSWORD }},
-              REDIS_HOST=${{ secrets.REDIS_HOST }},
-              REDIS_PORT=${{ secrets.REDIS_PORT }},
-              FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},
-              FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }},
-              FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }},
-              FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }},
-              FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}
-            }" \
+            --environment file://env_snow_final.json \
             --region ${{ env.AWS_REGION }}
+          
+          rm env_snow.json env_snow_final.json
           
           echo "✅ Snow Checker 环境变量更新完成"
           echo "⏳ 等待更新完成..."
@@ -296,18 +338,39 @@ jobs:
           
           # 更新 SQS Notification Processor 环境变量
           echo "🔧 更新 SQS Notification Processor 环境变量..."
+          
+          # 使用 JSON 文件来避免换行符问题
+          cat > env.json << 'EOF'
+{
+  "Variables": {
+    "SUPABASE_URL": "$SUPABASE_URL",
+    "SUPABASE_SERVICE_KEY": "$SUPABASE_SERVICE_KEY",
+    "FIREBASE_PROJECT_ID": "$FIREBASE_PROJECT_ID",
+    "FIREBASE_PRIVATE_KEY_ID": "$FIREBASE_PRIVATE_KEY_ID",
+    "FIREBASE_PRIVATE_KEY": "$FIREBASE_PRIVATE_KEY",
+    "FIREBASE_CLIENT_EMAIL": "$FIREBASE_CLIENT_EMAIL",
+    "FIREBASE_CLIENT_ID": "$FIREBASE_CLIENT_ID"
+  }
+}
+EOF
+          
+          # 替换环境变量
+          export SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+          export SUPABASE_SERVICE_KEY="${{ secrets.SUPABASE_SERVICE_KEY }}"
+          export FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}"
+          export FIREBASE_PRIVATE_KEY_ID="${{ secrets.FIREBASE_PRIVATE_KEY_ID }}"
+          export FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          export FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}"
+          export FIREBASE_CLIENT_ID="${{ secrets.FIREBASE_CLIENT_ID }}"
+          
+          envsubst < env.json > env_final.json
+          
           aws lambda update-function-configuration \
             --function-name resort-data-sqs-notification-processor \
-            --environment "Variables={
-              SUPABASE_URL=${{ secrets.SUPABASE_URL }},
-              SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }},
-              FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},
-              FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }},
-              FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }},
-              FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }},
-              FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}
-            }" \
+            --environment file://env_final.json \
             --region ${{ env.AWS_REGION }}
+          
+          rm env.json env_final.json
           
           echo "✅ 所有环境变量更新成功"
 

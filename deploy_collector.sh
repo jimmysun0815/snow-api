@@ -33,6 +33,7 @@ cp resort_manager.py collector_package/
 cp failure_tracker.py collector_package/
 cp collect_data.py collector_package/
 cp resorts_config.json collector_package/
+cp collection_report_generator.py collector_package/
 
 # 4. 创建 Lambda handler
 echo "📝 创建 Lambda handler..."
@@ -46,21 +47,29 @@ Lambda 函数 - 雪场数据采集
 import json
 import sys
 import os
+from datetime import datetime
 
 # 添加当前目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from resort_manager import ResortDataManager
 from failure_tracker import CollectionFailureTracker
+from collection_report_generator import CollectionReportGenerator
 
 def lambda_handler(event, context):
     """Lambda 处理函数"""
     
     print(f"收到事件: {json.dumps(event)}")
     
+    # 记录开始时间
+    start_time = datetime.now()
+    
     # 从事件中获取参数
     limit = event.get('limit')
     resort_id = event.get('resort_id')
+    
+    # 初始化报告生成器
+    report_generator = CollectionReportGenerator()
     
     try:
         # 初始化管理器
@@ -86,6 +95,20 @@ def lambda_handler(event, context):
             
             if data:
                 manager.save_data([data])
+                
+                # 生成报告
+                end_time = datetime.now()
+                stats = {
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'total_resorts': 1,
+                    'success_count': 1,
+                    'fail_count': 0,
+                    'failed_resorts': [],
+                    'data_quality': {}
+                }
+                generate_and_upload_report(report_generator, stats)
+                
                 return {
                     'statusCode': 200,
                     'body': json.dumps({
@@ -94,6 +117,19 @@ def lambda_handler(event, context):
                     })
                 }
             else:
+                # 生成失败报告
+                end_time = datetime.now()
+                stats = {
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'total_resorts': 1,
+                    'success_count': 0,
+                    'fail_count': 1,
+                    'failed_resorts': [{'name': resort_config.get('name'), 'error': 'Collection failed'}],
+                    'data_quality': {}
+                }
+                generate_and_upload_report(report_generator, stats)
+                
                 return {
                     'statusCode': 500,
                     'body': json.dumps({'error': 'Collection failed'})
@@ -112,21 +148,52 @@ def lambda_handler(event, context):
         print(f"开始采集 {len(resorts_to_collect)} 个雪场")
         
         results = []
+        failed_resorts = []
+        
         for resort_config in resorts_to_collect:
-            print(f"📍 采集: {resort_config.get('name')}")
-            data = manager.collect_resort_data(resort_config)
-            if data:
-                results.append(data)
+            resort_name = resort_config.get('name')
+            print(f"📍 采集: {resort_name}")
+            
+            try:
+                data = manager.collect_resort_data(resort_config)
+                if data:
+                    results.append(data)
+                else:
+                    failed_resorts.append({'name': resort_name, 'error': 'Collection returned None'})
+            except Exception as e:
+                failed_resorts.append({'name': resort_name, 'error': str(e)})
+                print(f"  ❌ 失败: {e}")
         
         # 保存数据
         if results:
             manager.save_data(results)
         
+        # 生成报告
+        end_time = datetime.now()
+        total_count = len(resorts_to_collect)
+        success_count = len(results)
+        fail_count = len(failed_resorts)
+        
+        stats = {
+            'start_time': start_time,
+            'end_time': end_time,
+            'total_resorts': total_count,
+            'success_count': success_count,
+            'fail_count': fail_count,
+            'failed_resorts': failed_resorts,
+            'data_quality': {}
+        }
+        
+        report_url = generate_and_upload_report(report_generator, stats)
+        
         return {
             'statusCode': 200,
             'body': json.dumps({
-                'message': f'Collected {len(results)} resorts successfully',
-                'total_resorts': len(results)
+                'message': f'Collected {success_count} resorts successfully',
+                'total_resorts': total_count,
+                'success_count': success_count,
+                'fail_count': fail_count,
+                'report_url': report_url
             })
         }
         
@@ -135,6 +202,22 @@ def lambda_handler(event, context):
         import traceback
         traceback.print_exc()
         
+        # 生成错误报告
+        end_time = datetime.now()
+        stats = {
+            'start_time': start_time,
+            'end_time': end_time,
+            'total_resorts': 0,
+            'success_count': 0,
+            'fail_count': 1,
+            'failed_resorts': [{'name': 'System Error', 'error': str(e)}],
+            'data_quality': {}
+        }
+        try:
+            generate_and_upload_report(report_generator, stats)
+        except:
+            pass  # 忽略报告生成失败
+        
         return {
             'statusCode': 500,
             'body': json.dumps({
@@ -142,6 +225,31 @@ def lambda_handler(event, context):
                 'errorType': type(e).__name__
             })
         }
+
+def generate_and_upload_report(report_generator, stats):
+    """生成并上传报告"""
+    try:
+        # 生成报告 HTML
+        html_content = report_generator.generate_report_html(stats)
+        
+        # 生成文件名: report_20251110_120530.html
+        timestamp = stats['start_time'].strftime('%Y%m%d_%H%M%S')
+        filename = f"report_{timestamp}.html"
+        
+        # 上传报告
+        report_url = report_generator.upload_report(html_content, filename)
+        print(f"✅ 报告已生成: {report_url}")
+        
+        # 更新索引页面
+        report_generator.update_index()
+        print(f"✅ 索引页面已更新")
+        
+        return report_url
+    except Exception as e:
+        print(f"⚠️  报告生成失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 EOF
 
 # 5. 打包

@@ -41,6 +41,11 @@ resource "aws_s3_bucket_policy" "reports" {
       }
     ]
   })
+
+  depends_on = [
+    aws_s3_bucket.reports,
+    aws_cloudfront_distribution.reports
+  ]
 }
 
 # S3 Bucket Website 配置
