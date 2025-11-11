@@ -33,6 +33,30 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
+# Lambda S3 访问策略 (用于报告上传)
+resource "aws_iam_role_policy" "lambda_s3_reports" {
+  name = "${var.project_name}-lambda-s3-reports"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.project_name}-reports",
+          "arn:aws:s3:::${var.project_name}-reports/*"
+        ]
+      }
+    ]
+  })
+}
+
 # CloudWatch 日志组 (API Lambda)
 resource "aws_cloudwatch_log_group" "api_lambda" {
   name              = "/aws/lambda/${var.project_name}-api"

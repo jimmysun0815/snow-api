@@ -23,6 +23,13 @@ provider "aws" {
   profile = var.aws_profile != "" ? var.aws_profile : null
 }
 
+# US East 1 Provider (for CloudFront ACM certificates)
+provider "aws" {
+  alias   = "us_east_1"
+  region  = "us-east-1"
+  profile = var.aws_profile != "" ? var.aws_profile : null
+}
+
 # 获取当前账户信息
 data "aws_caller_identity" "current" {}
 

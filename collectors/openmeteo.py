@@ -75,7 +75,7 @@ class OpenMeteoCollector(BaseCollector):
         if api_key:
             params['apikey'] = api_key
             api_url = self.API_BASE_URL_PAID
-            self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用付费 API]')
+            self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用付费 API，无速率限制]')
         else:
             api_url = self.API_BASE_URL_FREE
             self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用免费 API]')
