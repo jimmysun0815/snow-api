@@ -39,6 +39,9 @@ class Config:
     # 数据采集配置
     DATA_COLLECTION_INTERVAL = int(os.getenv('DATA_COLLECTION_INTERVAL', 3600))  # 1小时
     
+    # Open-Meteo API 配置
+    OPENMETEO_API_KEY = os.getenv('OPENMETEO_API_KEY', '')  # 付费 API Key（可选）
+    
     @classmethod
     def display(cls):
         """显示当前配置"""
@@ -49,6 +52,7 @@ class Config:
         print(f"Redis: {cls.REDIS_HOST}:{cls.REDIS_PORT}/{cls.REDIS_DB}")
         print(f"缓存 TTL: {cls.CACHE_TTL} 秒")
         print(f"采集间隔: {cls.DATA_COLLECTION_INTERVAL} 秒")
+        print(f"Open-Meteo API Key: {'已设置' if cls.OPENMETEO_API_KEY else '未设置（使用免费版）'}")
         print("=" * 80)
 
 

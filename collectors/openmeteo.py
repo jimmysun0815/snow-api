@@ -8,12 +8,15 @@ Open-Meteo 天气数据采集器
 import requests
 from typing import Optional, Dict, List
 from .base import BaseCollector
+from config import Config
 
 
 class OpenMeteoCollector(BaseCollector):
     """Open-Meteo 天气采集器"""
     
-    API_BASE_URL = "https://api.open-meteo.com/v1/forecast"
+    # 根据是否有 API Key 选择不同的 API 端点
+    API_BASE_URL_FREE = "https://api.open-meteo.com/v1/forecast"
+    API_BASE_URL_PAID = "https://customer-api.open-meteo.com/v1/forecast"
     
     def collect(self) -> Optional[Dict]:
         """
@@ -67,12 +70,22 @@ class OpenMeteoCollector(BaseCollector):
             'forecast_days': 7
         }
         
-        self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon})')
+        # 如果有 API Key，添加到参数中并使用付费 API 端点
+        api_key = Config.OPENMETEO_API_KEY
+        if api_key:
+            params['apikey'] = api_key
+            api_url = self.API_BASE_URL_PAID
+            self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用付费 API]')
+        else:
+            api_url = self.API_BASE_URL_FREE
+            self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用免费 API]')
+            # 免费 API 需要延迟以避免速率限制
+            self.random_delay(1.0, 2.0)
         
         # 构建完整 URL（用于重试机制）
         import urllib.parse
         query_string = urllib.parse.urlencode(params, doseq=True)
-        full_url = f"{self.API_BASE_URL}?{query_string}"
+        full_url = f"{api_url}?{query_string}"
         
         # 使用带重试的请求方法
         response = self.fetch_with_retry(full_url, max_retries=3, timeout=10)
