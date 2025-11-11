@@ -392,17 +392,22 @@ jobs:
           # 更新 Notification Handler 环境变量
           echo "🔧 更新 Notification Handler 环境变量..."
           
-          echo '{
-            "Variables": {
-              "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
-              "SUPABASE_SERVICE_KEY": "${{ secrets.SUPABASE_SERVICE_KEY }}",
-              "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
-              "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
-              "FIREBASE_PRIVATE_KEY": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
-              "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
-              "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
-            }
-          }' > env_handler_final.json
+          # 转义 Firebase 私钥中的换行符为 \\n
+          FIREBASE_KEY_ESCAPED=$(echo "${{ secrets.FIREBASE_PRIVATE_KEY }}" | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+          
+          cat > env_handler_final.json << ENVEOF
+{
+  "Variables": {
+    "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+    "SUPABASE_SERVICE_KEY": "${{ secrets.SUPABASE_SERVICE_KEY }}",
+    "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
+    "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
+    "FIREBASE_PRIVATE_KEY": "${FIREBASE_KEY_ESCAPED}",
+    "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
+    "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
+  }
+}
+ENVEOF
           
           aws lambda update-function-configuration \
             --function-name resort-data-notification-handler \
@@ -418,21 +423,26 @@ jobs:
           # 更新 Snow Checker 环境变量
           echo "🔧 更新 Snow Checker 环境变量..."
           
-          echo '{
-            "Variables": {
-              "DB_HOST": "${{ secrets.DB_HOST }}",
-              "DB_NAME": "${{ secrets.DB_NAME }}",
-              "DB_USER": "${{ secrets.DB_USER }}",
-              "DB_PASSWORD": "${{ secrets.DB_PASSWORD }}",
-              "REDIS_HOST": "${{ secrets.REDIS_HOST }}",
-              "REDIS_PORT": "${{ secrets.REDIS_PORT }}",
-              "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
-              "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
-              "FIREBASE_PRIVATE_KEY": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
-              "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
-              "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
-            }
-          }' > env_snow_final.json
+          # 转义 Firebase 私钥中的换行符为 \\n
+          FIREBASE_KEY_ESCAPED=$(echo "${{ secrets.FIREBASE_PRIVATE_KEY }}" | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+          
+          cat > env_snow_final.json << ENVEOF
+{
+  "Variables": {
+    "DB_HOST": "${{ secrets.DB_HOST }}",
+    "DB_NAME": "${{ secrets.DB_NAME }}",
+    "DB_USER": "${{ secrets.DB_USER }}",
+    "DB_PASSWORD": "${{ secrets.DB_PASSWORD }}",
+    "REDIS_HOST": "${{ secrets.REDIS_HOST }}",
+    "REDIS_PORT": "${{ secrets.REDIS_PORT }}",
+    "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
+    "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
+    "FIREBASE_PRIVATE_KEY": "${FIREBASE_KEY_ESCAPED}",
+    "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
+    "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
+  }
+}
+ENVEOF
           
           aws lambda update-function-configuration \
             --function-name resort-data-snow-checker \
@@ -448,17 +458,22 @@ jobs:
           # 更新 SQS Notification Processor 环境变量
           echo "🔧 更新 SQS Notification Processor 环境变量..."
           
-          echo '{
-            "Variables": {
-              "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
-              "SUPABASE_SERVICE_KEY": "${{ secrets.SUPABASE_SERVICE_KEY }}",
-              "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
-              "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
-              "FIREBASE_PRIVATE_KEY": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
-              "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
-              "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
-            }
-          }' > env_final.json
+          # 转义 Firebase 私钥中的换行符为 \\n
+          FIREBASE_KEY_ESCAPED=$(echo "${{ secrets.FIREBASE_PRIVATE_KEY }}" | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+          
+          cat > env_final.json << ENVEOF
+{
+  "Variables": {
+    "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+    "SUPABASE_SERVICE_KEY": "${{ secrets.SUPABASE_SERVICE_KEY }}",
+    "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
+    "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
+    "FIREBASE_PRIVATE_KEY": "${FIREBASE_KEY_ESCAPED}",
+    "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
+    "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
+  }
+}
+ENVEOF
           
           aws lambda update-function-configuration \
             --function-name resort-data-sqs-notification-processor \
