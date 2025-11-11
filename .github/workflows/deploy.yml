@@ -64,26 +64,144 @@ jobs:
           
           # 创建 collector handler
           cat > package/collector_handler.py << 'EOF'
+          #!/usr/bin/env python3
+          # -*- coding: utf-8 -*-
+          """Lambda 函数 - 雪场数据采集"""
+          
+          import json
+          import sys
           import os
-          from collect_data import main as collect_data_main
-
+          from datetime import datetime
+          
+          sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+          
+          from resort_manager import ResortDataManager
+          from failure_tracker import CollectionFailureTracker
+          from collection_report_generator import CollectionReportGenerator
+          
           def lambda_handler(event, context):
-              print("[START] Starting data collection...")
+              """Lambda 处理函数"""
+              print(f"收到事件: {json.dumps(event)}")
+              start_time = datetime.now()
+              limit = event.get('limit')
+              resort_id = event.get('resort_id')
+              report_generator = CollectionReportGenerator()
+              
               try:
-                  collect_data_main()
-                  print("[OK] Data collection completed")
+                  manager = ResortDataManager(config_file='resorts_config.json')
+                  failure_tracker = CollectionFailureTracker()
+                  
+                  # 单个雪场采集
+                  if resort_id:
+                      resort_config = None
+                      for r in manager.resorts:
+                          if r.get('id') == resort_id:
+                              resort_config = r
+                              break
+                      
+                      if not resort_config:
+                          return {'statusCode': 404, 'body': json.dumps({'error': f'Resort ID {resort_id} not found'})}
+                      
+                      print(f"采集单个雪场: {resort_config.get('name')}")
+                      data = manager.collect_resort_data(resort_config)
+                      
+                      if data:
+                          manager.save_data([data])
+                          end_time = datetime.now()
+                          stats = {
+                              'start_time': start_time, 'end_time': end_time,
+                              'total_resorts': 1, 'success_count': 1, 'fail_count': 0,
+                              'failed_resorts': [], 'data_quality': {}
+                          }
+                          generate_and_upload_report(report_generator, stats)
+                          return {'statusCode': 200, 'body': json.dumps({'message': 'Data collected successfully', 'resort': resort_config.get('name')})}
+                      else:
+                          end_time = datetime.now()
+                          stats = {
+                              'start_time': start_time, 'end_time': end_time,
+                              'total_resorts': 1, 'success_count': 0, 'fail_count': 1,
+                              'failed_resorts': [{'name': resort_config.get('name'), 'error': 'Collection failed'}],
+                              'data_quality': {}
+                          }
+                          generate_and_upload_report(report_generator, stats)
+                          return {'statusCode': 500, 'body': json.dumps({'error': 'Collection failed'})}
+                  
+                  # 批量采集
+                  resorts_to_collect = [r for r in manager.resorts if r.get('enabled', False)]
+                  if limit:
+                      resorts_to_collect = resorts_to_collect[:limit]
+                  
+                  print(f"开始采集 {len(resorts_to_collect)} 个雪场")
+                  results = []
+                  failed_resorts = []
+                  
+                  for resort_config in resorts_to_collect:
+                      resort_name = resort_config.get('name')
+                      print(f"📍 采集: {resort_name}")
+                      try:
+                          data = manager.collect_resort_data(resort_config)
+                          if data:
+                              results.append(data)
+                          else:
+                              failed_resorts.append({'name': resort_name, 'error': 'Collection returned None'})
+                      except Exception as e:
+                          failed_resorts.append({'name': resort_name, 'error': str(e)})
+                          print(f"  ❌ 失败: {e}")
+                  
+                  if results:
+                      manager.save_data(results)
+                  
+                  end_time = datetime.now()
+                  stats = {
+                      'start_time': start_time, 'end_time': end_time,
+                      'total_resorts': len(resorts_to_collect),
+                      'success_count': len(results), 'fail_count': len(failed_resorts),
+                      'failed_resorts': failed_resorts, 'data_quality': {}
+                  }
+                  report_url = generate_and_upload_report(report_generator, stats)
+                  
                   return {
                       'statusCode': 200,
-                      'body': 'Data collection completed successfully!'
+                      'body': json.dumps({
+                          'message': f'Collected {len(results)} resorts successfully',
+                          'total_resorts': len(resorts_to_collect),
+                          'success_count': len(results), 'fail_count': len(failed_resorts),
+                          'report_url': report_url
+                      })
                   }
               except Exception as e:
-                  print(f"[ERROR] Data collection failed: {e}")
+                  print(f"❌ 采集失败: {e}")
                   import traceback
                   traceback.print_exc()
-                  return {
-                      'statusCode': 500,
-                      'body': f'Data collection failed: {e}'
+                  end_time = datetime.now()
+                  stats = {
+                      'start_time': start_time, 'end_time': end_time,
+                      'total_resorts': 0, 'success_count': 0, 'fail_count': 1,
+                      'failed_resorts': [{'name': 'System Error', 'error': str(e)}],
+                      'data_quality': {}
                   }
+                  try:
+                      generate_and_upload_report(report_generator, stats)
+                  except:
+                      pass
+                  return {'statusCode': 500, 'body': json.dumps({'error': str(e), 'errorType': type(e).__name__})}
+          
+          def generate_and_upload_report(report_generator, stats):
+              """生成并上传报告"""
+              try:
+                  html_content = report_generator.generate_report_html(stats)
+                  timestamp = stats['start_time'].strftime('%Y%m%d_%H%M%S')
+                  filename = f"report_{timestamp}.html"
+                  report_url = report_generator.upload_report(html_content, filename)
+                  print(f"✅ 报告已生成: {report_url}")
+                  report_generator.update_index()
+                  print(f"✅ 索引页面已更新")
+                  return report_url
+              except Exception as e:
+                  print(f"⚠️  报告生成失败: {e}")
+                  import traceback
+                  traceback.print_exc()
+                  return None
           EOF
           
           # 创建部署包
@@ -125,11 +243,25 @@ jobs:
             --region ${{ env.AWS_REGION }} || true
           
           echo "🔧 更新 Collector Lambda 环境变量 (Open-Meteo API Key)..."
+          
+          # 获取现有环境变量
+          EXISTING_ENV=$(aws lambda get-function-configuration \
+            --function-name resort-data-collector \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Environment.Variables' \
+            --output json)
+          
+          echo "现有环境变量: $EXISTING_ENV"
+          
+          # 使用 jq 添加 OPENMETEO_API_KEY
+          UPDATED_ENV=$(echo $EXISTING_ENV | jq '. + {"OPENMETEO_API_KEY": "${{ secrets.OPENMETEO_API_KEY }}"}')
+          
+          echo "更新后的环境变量: $UPDATED_ENV"
+          
+          # 更新 Lambda 配置
           aws lambda update-function-configuration \
             --function-name resort-data-collector \
-            --environment "Variables={
-              OPENMETEO_API_KEY=${{ secrets.OPENMETEO_API_KEY }}
-            }" \
+            --environment "Variables=$UPDATED_ENV" \
             --region ${{ env.AWS_REGION }}
           
           echo "✅ Collector Lambda 环境变量更新完成"
@@ -255,36 +387,24 @@ jobs:
           # 更新 Notification Handler 环境变量
           echo "🔧 更新 Notification Handler 环境变量..."
           
-          cat > env_handler.json << 'EOF'
-          {
+          echo '{
             "Variables": {
-              "SUPABASE_URL": "$SUPABASE_URL",
-              "SUPABASE_SERVICE_KEY": "$SUPABASE_SERVICE_KEY",
-              "FIREBASE_PROJECT_ID": "$FIREBASE_PROJECT_ID",
-              "FIREBASE_PRIVATE_KEY_ID": "$FIREBASE_PRIVATE_KEY_ID",
-              "FIREBASE_PRIVATE_KEY": "$FIREBASE_PRIVATE_KEY",
-              "FIREBASE_CLIENT_EMAIL": "$FIREBASE_CLIENT_EMAIL",
-              "FIREBASE_CLIENT_ID": "$FIREBASE_CLIENT_ID"
+              "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+              "SUPABASE_SERVICE_KEY": "${{ secrets.SUPABASE_SERVICE_KEY }}",
+              "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
+              "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
+              "FIREBASE_PRIVATE_KEY": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
+              "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
+              "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
             }
-          }
-          EOF
-          
-          export SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
-          export SUPABASE_SERVICE_KEY="${{ secrets.SUPABASE_SERVICE_KEY }}"
-          export FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}"
-          export FIREBASE_PRIVATE_KEY_ID="${{ secrets.FIREBASE_PRIVATE_KEY_ID }}"
-          export FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
-          export FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}"
-          export FIREBASE_CLIENT_ID="${{ secrets.FIREBASE_CLIENT_ID }}"
-          
-          envsubst < env_handler.json > env_handler_final.json
+          }' > env_handler_final.json
           
           aws lambda update-function-configuration \
             --function-name resort-data-notification-handler \
             --environment file://env_handler_final.json \
             --region ${{ env.AWS_REGION }}
           
-          rm env_handler.json env_handler_final.json
+          rm env_handler_final.json
           
           echo "✅ Notification Handler 环境变量更新完成"
           echo "⏳ 等待更新完成..."
@@ -293,44 +413,28 @@ jobs:
           # 更新 Snow Checker 环境变量
           echo "🔧 更新 Snow Checker 环境变量..."
           
-          cat > env_snow.json << 'EOF'
-{
-  "Variables": {
-    "DB_HOST": "$DB_HOST",
-    "DB_NAME": "$DB_NAME",
-    "DB_USER": "$DB_USER",
-    "DB_PASSWORD": "$DB_PASSWORD",
-    "REDIS_HOST": "$REDIS_HOST",
-    "REDIS_PORT": "$REDIS_PORT",
-    "FIREBASE_PROJECT_ID": "$FIREBASE_PROJECT_ID",
-    "FIREBASE_PRIVATE_KEY_ID": "$FIREBASE_PRIVATE_KEY_ID",
-    "FIREBASE_PRIVATE_KEY": "$FIREBASE_PRIVATE_KEY",
-    "FIREBASE_CLIENT_EMAIL": "$FIREBASE_CLIENT_EMAIL",
-    "FIREBASE_CLIENT_ID": "$FIREBASE_CLIENT_ID"
-  }
-}
-EOF
-          
-          export DB_HOST="${{ secrets.DB_HOST }}"
-          export DB_NAME="${{ secrets.DB_NAME }}"
-          export DB_USER="${{ secrets.DB_USER }}"
-          export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
-          export REDIS_HOST="${{ secrets.REDIS_HOST }}"
-          export REDIS_PORT="${{ secrets.REDIS_PORT }}"
-          export FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}"
-          export FIREBASE_PRIVATE_KEY_ID="${{ secrets.FIREBASE_PRIVATE_KEY_ID }}"
-          export FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
-          export FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}"
-          export FIREBASE_CLIENT_ID="${{ secrets.FIREBASE_CLIENT_ID }}"
-          
-          envsubst < env_snow.json > env_snow_final.json
+          echo '{
+            "Variables": {
+              "DB_HOST": "${{ secrets.DB_HOST }}",
+              "DB_NAME": "${{ secrets.DB_NAME }}",
+              "DB_USER": "${{ secrets.DB_USER }}",
+              "DB_PASSWORD": "${{ secrets.DB_PASSWORD }}",
+              "REDIS_HOST": "${{ secrets.REDIS_HOST }}",
+              "REDIS_PORT": "${{ secrets.REDIS_PORT }}",
+              "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
+              "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
+              "FIREBASE_PRIVATE_KEY": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
+              "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
+              "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
+            }
+          }' > env_snow_final.json
           
           aws lambda update-function-configuration \
             --function-name resort-data-snow-checker \
             --environment file://env_snow_final.json \
             --region ${{ env.AWS_REGION }}
           
-          rm env_snow.json env_snow_final.json
+          rm env_snow_final.json
           
           echo "✅ Snow Checker 环境变量更新完成"
           echo "⏳ 等待更新完成..."
@@ -339,38 +443,24 @@ EOF
           # 更新 SQS Notification Processor 环境变量
           echo "🔧 更新 SQS Notification Processor 环境变量..."
           
-          # 使用 JSON 文件来避免换行符问题
-          cat > env.json << 'EOF'
-{
-  "Variables": {
-    "SUPABASE_URL": "$SUPABASE_URL",
-    "SUPABASE_SERVICE_KEY": "$SUPABASE_SERVICE_KEY",
-    "FIREBASE_PROJECT_ID": "$FIREBASE_PROJECT_ID",
-    "FIREBASE_PRIVATE_KEY_ID": "$FIREBASE_PRIVATE_KEY_ID",
-    "FIREBASE_PRIVATE_KEY": "$FIREBASE_PRIVATE_KEY",
-    "FIREBASE_CLIENT_EMAIL": "$FIREBASE_CLIENT_EMAIL",
-    "FIREBASE_CLIENT_ID": "$FIREBASE_CLIENT_ID"
-  }
-}
-EOF
-          
-          # 替换环境变量
-          export SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
-          export SUPABASE_SERVICE_KEY="${{ secrets.SUPABASE_SERVICE_KEY }}"
-          export FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}"
-          export FIREBASE_PRIVATE_KEY_ID="${{ secrets.FIREBASE_PRIVATE_KEY_ID }}"
-          export FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
-          export FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}"
-          export FIREBASE_CLIENT_ID="${{ secrets.FIREBASE_CLIENT_ID }}"
-          
-          envsubst < env.json > env_final.json
+          echo '{
+            "Variables": {
+              "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+              "SUPABASE_SERVICE_KEY": "${{ secrets.SUPABASE_SERVICE_KEY }}",
+              "FIREBASE_PROJECT_ID": "${{ secrets.FIREBASE_PROJECT_ID }}",
+              "FIREBASE_PRIVATE_KEY_ID": "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}",
+              "FIREBASE_PRIVATE_KEY": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
+              "FIREBASE_CLIENT_EMAIL": "${{ secrets.FIREBASE_CLIENT_EMAIL }}",
+              "FIREBASE_CLIENT_ID": "${{ secrets.FIREBASE_CLIENT_ID }}"
+            }
+          }' > env_final.json
           
           aws lambda update-function-configuration \
             --function-name resort-data-sqs-notification-processor \
             --environment file://env_final.json \
             --region ${{ env.AWS_REGION }}
           
-          rm env.json env_final.json
+          rm env_final.json
           
           echo "✅ 所有环境变量更新成功"
 
