@@ -256,18 +256,18 @@ jobs:
           echo "🔧 更新 Notification Handler 环境变量..."
           
           cat > env_handler.json << 'EOF'
-{
-  "Variables": {
-    "SUPABASE_URL": "$SUPABASE_URL",
-    "SUPABASE_SERVICE_KEY": "$SUPABASE_SERVICE_KEY",
-    "FIREBASE_PROJECT_ID": "$FIREBASE_PROJECT_ID",
-    "FIREBASE_PRIVATE_KEY_ID": "$FIREBASE_PRIVATE_KEY_ID",
-    "FIREBASE_PRIVATE_KEY": "$FIREBASE_PRIVATE_KEY",
-    "FIREBASE_CLIENT_EMAIL": "$FIREBASE_CLIENT_EMAIL",
-    "FIREBASE_CLIENT_ID": "$FIREBASE_CLIENT_ID"
-  }
-}
-EOF
+          {
+            "Variables": {
+              "SUPABASE_URL": "$SUPABASE_URL",
+              "SUPABASE_SERVICE_KEY": "$SUPABASE_SERVICE_KEY",
+              "FIREBASE_PROJECT_ID": "$FIREBASE_PROJECT_ID",
+              "FIREBASE_PRIVATE_KEY_ID": "$FIREBASE_PRIVATE_KEY_ID",
+              "FIREBASE_PRIVATE_KEY": "$FIREBASE_PRIVATE_KEY",
+              "FIREBASE_CLIENT_EMAIL": "$FIREBASE_CLIENT_EMAIL",
+              "FIREBASE_CLIENT_ID": "$FIREBASE_CLIENT_ID"
+            }
+          }
+          EOF
           
           export SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
           export SUPABASE_SERVICE_KEY="${{ secrets.SUPABASE_SERVICE_KEY }}"
