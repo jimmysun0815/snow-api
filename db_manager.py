@@ -13,6 +13,42 @@ from config import Config
 from models import Base, Resort, ResortCondition, ResortWeather, ResortTrail
 
 
+def calculate_status_by_opening_date(opening_date_str: str, original_status: str) -> str:
+    """
+    根据开放日期计算雪场状态（与前端逻辑保持一致）
+    
+    Args:
+        opening_date_str: 开放日期字符串 (ISO格式)
+        original_status: 原始状态 (从数据源获取的状态)
+    
+    Returns:
+        计算后的状态: 'open' 或 'closed'
+    """
+    if not opening_date_str:
+        return original_status
+    
+    try:
+        opening_date = datetime.fromisoformat(opening_date_str.replace('Z', '+00:00'))
+        now = datetime.now(opening_date.tzinfo) if opening_date.tzinfo else datetime.now()
+        difference = (opening_date.date() - now.date()).days
+        
+        # 如果当前日期在开放日期之后
+        if difference < 0:
+            days_since_opening = -difference
+            # 开放50天内认为是开放状态
+            if days_since_opening <= 50:
+                return 'open'
+            # 超过50天，不显示状态（但为了兼容，返回原始状态）
+            return original_status
+        
+        # 还没到开放日期，返回关闭
+        return 'closed'
+    except (ValueError, AttributeError) as e:
+        # 日期解析失败，返回原始状态
+        print(f"[WARN] 解析开放日期失败: {opening_date_str}, error: {e}")
+        return original_status
+
+
 class DatabaseManager:
     """数据库和缓存管理器"""
     
@@ -212,8 +248,14 @@ class DatabaseManager:
             
             # 添加雪况数据
             if latest_condition:
+                # 获取开放日期
+                opening_date = latest_condition.extra_data.get('opening_date') if latest_condition.extra_data else None
+                
+                # 基于开放日期计算状态（与前端和列表页逻辑一致）
+                calculated_status = calculate_status_by_opening_date(opening_date, latest_condition.status)
+                
                 data.update({
-                    'status': latest_condition.status,
+                    'status': calculated_status,  # 使用计算后的状态
                     'new_snow': latest_condition.new_snow,
                     'new_snow_24h': latest_condition.new_snow,
                     'new_snow_48h': latest_condition.extra_data.get('new_snow_48h') if latest_condition.extra_data else None,
@@ -225,7 +267,7 @@ class DatabaseManager:
                     'trails_open': latest_condition.trails_open,
                     'trails_total': latest_condition.trails_total,
                     'temperature': latest_condition.temperature,
-                    'opening_date': latest_condition.extra_data.get('opening_date') if latest_condition.extra_data else None,
+                    'opening_date': opening_date,
                     'last_update': latest_condition.timestamp.isoformat(),
                     'data_source': latest_condition.data_source
                 })
@@ -321,8 +363,15 @@ class DatabaseManager:
                 
                 # 添加雪况信息
                 if latest_condition:
+                    # 获取开放日期
+                    opening_date = latest_condition.extra_data.get('opening_date') if latest_condition.extra_data else None
+                    
+                    # 基于开放日期计算状态（与前端和详情页逻辑一致）
+                    calculated_status = calculate_status_by_opening_date(opening_date, latest_condition.status)
+                    
                     summary.update({
-                        'status': latest_condition.status,
+                        'status': calculated_status,  # 使用计算后的状态
+                        'opening_date': opening_date,  # 添加开放日期字段供前端使用
                         'new_snow_24h': latest_condition.new_snow,
                         'base_depth': latest_condition.base_depth,
                         'lifts_open': latest_condition.lifts_open,
