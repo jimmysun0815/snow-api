@@ -254,15 +254,20 @@ jobs:
           echo "现有环境变量: $EXISTING_ENV"
           
           # 使用 jq 添加 OPENMETEO_API_KEY
-          UPDATED_ENV=$(echo $EXISTING_ENV | jq '. + {"OPENMETEO_API_KEY": "${{ secrets.OPENMETEO_API_KEY }}"}')
+          UPDATED_ENV=$(echo "$EXISTING_ENV" | jq '. + {"OPENMETEO_API_KEY": "${{ secrets.OPENMETEO_API_KEY }}"}')
           
           echo "更新后的环境变量: $UPDATED_ENV"
+          
+          # 写入临时文件
+          echo "{\"Variables\": $UPDATED_ENV}" > collector_env.json
           
           # 更新 Lambda 配置
           aws lambda update-function-configuration \
             --function-name resort-data-collector \
-            --environment "Variables=$UPDATED_ENV" \
+            --environment file://collector_env.json \
             --region ${{ env.AWS_REGION }}
+          
+          rm collector_env.json
           
           echo "✅ Collector Lambda 环境变量更新完成"
 
