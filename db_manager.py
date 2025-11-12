@@ -6,8 +6,9 @@ import json
 import redis
 from datetime import datetime
 from sqlalchemy import create_engine, desc
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from typing import List, Dict, Optional
+import threading
 
 from config import Config
 from models import Base, Resort, ResortCondition, ResortWeather, ResortTrail
@@ -50,15 +51,21 @@ def calculate_status_by_opening_date(opening_date_str: str, original_status: str
 
 
 class DatabaseManager:
-    """数据库和缓存管理器"""
+    """数据库和缓存管理器（线程安全）"""
     
     def __init__(self):
         """初始化数据库连接和Redis"""
-        # PostgreSQL
-        self.engine = create_engine(Config.DATABASE_URL, echo=False, pool_pre_ping=True)
+        # PostgreSQL - 使用 scoped_session 实现线程安全
+        self.engine = create_engine(
+            Config.DATABASE_URL, 
+            echo=False, 
+            pool_pre_ping=True,
+            pool_size=20,  # 增加连接池大小以支持并发
+            max_overflow=10
+        )
         Base.metadata.create_all(self.engine)
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
+        session_factory = sessionmaker(bind=self.engine)
+        self.Session = scoped_session(session_factory)  # 线程安全的 session
         
         # Redis
         self.redis_client = redis.from_url(Config.REDIS_URL, decode_responses=True)
@@ -66,18 +73,25 @@ class DatabaseManager:
         
         print(f"[OK] 数据库连接成功: {Config.POSTGRES_HOST}:{Config.POSTGRES_PORT}/{Config.POSTGRES_DB}")
         print(f"[OK] Redis 连接成功: {Config.REDIS_HOST}:{Config.REDIS_PORT}")
+        print(f"[OK] 线程安全模式已启用 (pool_size=20)")
+    
+    @property
+    def session(self):
+        """获取当前线程的 session"""
+        return self.Session()
     
     def save_resort_data(self, resort_config: Dict, normalized_data: Dict):
         """
-        保存雪场数据到数据库
+        保存雪场数据到数据库（线程安全）
         
         Args:
             resort_config: 雪场配置
             normalized_data: 标准化后的数据
         """
+        session = self.Session()  # 获取当前线程的 session
         try:
             # 1. 确保雪场记录存在
-            resort = self.session.query(Resort).filter_by(id=resort_config['id']).first()
+            resort = session.query(Resort).filter_by(id=resort_config['id']).first()
             
             if not resort:
                 # 创建新雪场记录
@@ -94,9 +108,14 @@ class DatabaseManager:
                     source_url=resort_config.get('source_url'),
                     source_id=resort_config.get('source_id'),
                     enabled=resort_config.get('enabled', True),
-                    notes=resort_config.get('notes')
+                    notes=resort_config.get('notes'),
+                    address=normalized_data.get('address'),
+                    city=normalized_data.get('city'),
+                    zip_code=normalized_data.get('zip_code'),
+                    phone=normalized_data.get('phone'),
+                    website=normalized_data.get('website')
                 )
-                self.session.add(resort)
+                session.add(resort)
             else:
                 # 更新雪场基本信息（包括联系信息）
                 resort.updated_at = datetime.now()
@@ -132,7 +151,7 @@ class DatabaseManager:
                     'elevation': normalized_data.get('elevation')
                 }
             )
-            self.session.add(condition)
+            session.add(condition)
             
             # 3. 保存天气数据
             weather_data = normalized_data.get('weather', {})
@@ -164,10 +183,10 @@ class DatabaseManager:
                     forecast_7d=weather_data.get('forecast_7d'),
                     source=weather_data.get('source')
                 )
-                self.session.add(weather)
+                session.add(weather)
             
             # 4. 提交事务
-            self.session.commit()
+            session.commit()
             
             # 5. 清除相关缓存
             self._invalidate_cache(resort_config['id'], resort_config['slug'])
@@ -175,9 +194,13 @@ class DatabaseManager:
             return True
             
         except Exception as e:
-            self.session.rollback()
+            session.rollback()
+            import traceback
             print(f"[ERROR] 保存数据失败 ({resort_config['name']}): {e}")
+            traceback.print_exc()
             return False
+        finally:
+            session.close()  # 确保关闭 session
     
     def get_latest_resort_data(self, resort_id: int = None, resort_slug: str = None) -> Optional[Dict]:
         """

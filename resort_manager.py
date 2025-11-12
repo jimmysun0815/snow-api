@@ -10,6 +10,8 @@ import os
 from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 from collectors import MtnPowderCollector, OnTheSnowCollector, OpenMeteoCollector
 from normalizer import DataNormalizer
@@ -51,6 +53,9 @@ class ResortDataManager:
                 self.db_manager = None
         else:
             self.db_manager = None
+        
+        # 线程锁，用于保护输出
+        self.print_lock = threading.Lock()
         
     def _load_config(self) -> Dict:
         """加载配置文件"""
@@ -145,13 +150,93 @@ class ResortDataManager:
         
         return normalized_data
     
-    def collect_all(self, enabled_only: bool = True, failure_tracker=None) -> List[Dict]:
+    def _collect_single_resort(self, resort_config: Dict, failure_tracker=None) -> tuple[Optional[Dict], Optional[str]]:
         """
-        采集所有雪场数据
+        采集单个雪场数据（用于并发）
+        
+        Args:
+            resort_config: 雪场配置
+            failure_tracker: 失败追踪器（可选）
+            
+        Returns:
+            (数据, 错误信息) 元组
+        """
+        resort_name = resort_config.get('name')
+        resort_id = resort_config.get('id')
+        
+        try:
+            data = self.collect_resort_data(resort_config)
+            
+            if data:
+                # 保存到数据库
+                if self.use_db and self.db_manager:
+                    success = self.db_manager.save_resort_data(resort_config, data)
+                    if success:
+                        with self.print_lock:
+                            print(f"   ✅ {resort_name} - 成功（已存入数据库）")
+                    else:
+                        with self.print_lock:
+                            print(f"   ✅ {resort_name} - 成功（数据库保存失败，仅保存到文件）")
+                else:
+                    with self.print_lock:
+                        print(f"   ✅ {resort_name} - 成功")
+                
+                return (data, None)
+            else:
+                with self.print_lock:
+                    print(f"   ❌ {resort_name} - 失败（无数据）")
+                
+                # 记录失败
+                if failure_tracker:
+                    url = resort_config.get('source_url', 'N/A')
+                    failure_tracker.add_failure(
+                        resort_id=resort_id,
+                        resort_name=resort_name,
+                        error_type='NO_DATA',
+                        error_message='采集器返回空数据',
+                        url=url
+                    )
+                
+                return (None, 'NO_DATA')
+                
+        except Exception as e:
+            error_str = str(e)
+            with self.print_lock:
+                print(f"   ❌ {resort_name} - 错误: {error_str[:100]}")
+            
+            # 记录失败
+            if failure_tracker:
+                url = resort_config.get('source_url', 'N/A')
+                
+                # 判断错误类型
+                error_type = 'UNKNOWN'
+                if '404' in error_str or 'Not Found' in error_str:
+                    error_type = 'HTTP_404'
+                elif 'timeout' in error_str.lower() or 'timed out' in error_str.lower():
+                    error_type = 'TIMEOUT'
+                elif 'connection' in error_str.lower():
+                    error_type = 'CONNECTION_ERROR'
+                elif 'json' in error_str.lower():
+                    error_type = 'JSON_ERROR'
+                
+                failure_tracker.add_failure(
+                    resort_id=resort_id,
+                    resort_name=resort_name,
+                    error_type=error_type,
+                    error_message=error_str[:200],  # 限制长度
+                    url=url
+                )
+            
+            return (None, error_str)
+    
+    def collect_all(self, enabled_only: bool = True, failure_tracker=None, max_workers: int = 20) -> List[Dict]:
+        """
+        采集所有雪场数据（使用多线程并发）
         
         Args:
             enabled_only: 是否只采集已启用的雪场
             failure_tracker: 失败追踪器（可选）
+            max_workers: 最大并发线程数（默认20）
             
         Returns:
             标准化数据列表
@@ -163,75 +248,34 @@ class ResortDataManager:
             if not enabled_only or r.get('enabled', False)
         ]
         
-        print(f"\n开始采集 {len(resorts_to_collect)} 个雪场的数据")
+        print(f"\n🚀 开始并发采集 {len(resorts_to_collect)} 个雪场的数据（{max_workers} 线程）")
         print("=" * 70)
         print()
         
-        for resort_config in resorts_to_collect:
-            resort_name = resort_config.get('name')
-            resort_id = resort_config.get('id')
-            print(f"📍 采集: {resort_name}")
+        # 使用线程池并发采集
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 提交所有任务
+            future_to_resort = {
+                executor.submit(self._collect_single_resort, resort_config, failure_tracker): resort_config
+                for resort_config in resorts_to_collect
+            }
             
-            try:
-                data = self.collect_resort_data(resort_config)
+            # 收集结果
+            completed = 0
+            for future in as_completed(future_to_resort):
+                completed += 1
+                data, error = future.result()
                 
                 if data:
                     results.append(data)
-                    
-                    # 保存到数据库
-                    if self.use_db and self.db_manager:
-                        success = self.db_manager.save_resort_data(resort_config, data)
-                        if success:
-                            print(f"   [OK] 成功（已存入数据库）")
-                        else:
-                            print(f"   [OK] 成功（数据库保存失败，仅保存到文件）")
-                    else:
-                        print(f"   [OK] 成功")
-                else:
-                    print(f"   [ERROR] 失败")
-                    
-                    # 记录失败
-                    if failure_tracker:
-                        url = resort_config.get('source_url', 'N/A')
-                        failure_tracker.add_failure(
-                            resort_id=resort_id,
-                            resort_name=resort_name,
-                            error_type='NO_DATA',
-                            error_message='采集器返回空数据',
-                            url=url
-                        )
-                    
-            except Exception as e:
-                error_str = str(e)
-                print(f"   [ERROR] 错误: {error_str}")
                 
-                # 记录失败
-                if failure_tracker:
-                    url = resort_config.get('source_url', 'N/A')
-                    
-                    # 判断错误类型
-                    error_type = 'UNKNOWN'
-                    if '404' in error_str or 'Not Found' in error_str:
-                        error_type = 'HTTP_404'
-                    elif 'timeout' in error_str.lower() or 'timed out' in error_str.lower():
-                        error_type = 'TIMEOUT'
-                    elif 'connection' in error_str.lower():
-                        error_type = 'CONNECTION_ERROR'
-                    elif 'json' in error_str.lower():
-                        error_type = 'JSON_ERROR'
-                    
-                    failure_tracker.add_failure(
-                        resort_id=resort_id,
-                        resort_name=resort_name,
-                        error_type=error_type,
-                        error_message=error_str[:200],  # 限制长度
-                        url=url
-                    )
-            
-            print()
+                # 显示进度
+                with self.print_lock:
+                    print(f"   [{completed}/{len(resorts_to_collect)}] 已完成")
         
+        print()
         print("=" * 70)
-        print(f"采集完成: 成功 {len(results)}/{len(resorts_to_collect)}")
+        print(f"✅ 采集完成: 成功 {len(results)}/{len(resorts_to_collect)}")
         print()
         
         return results
