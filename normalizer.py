@@ -52,6 +52,21 @@ class DataNormalizer:
         else:
             status = 'closed'
         
+        # 处理温度（可能是 '--' 字符串）
+        def safe_float(value, default=0):
+            """安全转换为 float，处理 None 和 '--' 等无效值"""
+            if value is None:
+                return default
+            if isinstance(value, str) and (value.strip() == '--' or value.strip() == ''):
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+        
+        temp_c = base_station.get('TemperatureC')
+        temperature = safe_float(temp_c, 0)
+        
         return {
             'resort_id': resort_config.get('id'),
             'name': resort_config.get('name'),
@@ -66,7 +81,7 @@ class DataNormalizer:
             'lifts_total': snow_report.get('TotalLifts', 0),
             'trails_open': snow_report.get('TotalOpenTrails', 0),
             'trails_total': snow_report.get('TotalTrails', 0),
-            'temperature': float(base_station.get('TemperatureC', 0)) if base_station.get('TemperatureC') else 0,
+            'temperature': temperature,
             'last_update': datetime.now().isoformat(),
             'source': f"https://www.mtnpowder.com/feed?resortId={resort_config.get('source_id')}",
             'data_source': 'mtnpowder'
