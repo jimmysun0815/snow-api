@@ -229,14 +229,14 @@ class ResortDataManager:
             
             return (None, error_str)
     
-    def collect_all(self, enabled_only: bool = True, failure_tracker=None, max_workers: int = 20) -> List[Dict]:
+    def collect_all(self, enabled_only: bool = True, failure_tracker=None, max_workers: int = 10) -> List[Dict]:
         """
         采集所有雪场数据（使用多线程并发）
         
         Args:
             enabled_only: 是否只采集已启用的雪场
             failure_tracker: 失败追踪器（可选）
-            max_workers: 最大并发线程数（默认20）
+            max_workers: 最大并发线程数（默认10，平衡速度和稳定性）
             
         Returns:
             标准化数据列表

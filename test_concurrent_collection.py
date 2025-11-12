@@ -37,7 +37,7 @@ def main():
     start_datetime = datetime.now()
     
     # 执行采集
-    results = manager.collect_all(enabled_only=False, max_workers=20)
+    results = manager.collect_all(enabled_only=False, max_workers=10)
     
     # 结束计时
     end_time = time.time()

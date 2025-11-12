@@ -62,16 +62,16 @@ class BaseCollector(ABC):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"[{timestamp}] [{level}] [{self.resort_name}] {message}")
     
-    def random_delay(self, min_seconds: float = 0.0, max_seconds: float = 0.0):
+    def random_delay(self, min_seconds: float = 0.5, max_seconds: float = 1.0):
         """
-        随机延迟（已禁用 - 使用 API Key 和多线程，不需要延迟）
+        随机延迟（并发模式下使用较短延迟）
         
         Args:
-            min_seconds: 最小延迟秒数（忽略）
-            max_seconds: 最大延迟秒数（忽略）
+            min_seconds: 最小延迟秒数
+            max_seconds: 最大延迟秒数
         """
-        # 不再延迟，直接返回
-        pass
+        delay = random.uniform(min_seconds, max_seconds)
+        time.sleep(delay)
     
     def fetch_with_retry(self, url: str, max_retries: int = 3, timeout: int = 10) -> Optional[requests.Response]:
         """

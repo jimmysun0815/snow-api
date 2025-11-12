@@ -30,8 +30,8 @@ class OnTheSnowCollector(BaseCollector):
         
         self.log('INFO', f'开始采集数据: {url}')
         
-        # 添加随机延迟，避免被识别为机器人
-        self.random_delay(2.0, 3.0)
+        # 添加小延迟，避免被识别为机器人（并发模式下保持较短延迟）
+        self.random_delay(0.5, 1.0)
         
         # 使用带重试的请求方法
         response = self.fetch_with_retry(url, max_retries=3, timeout=15)
