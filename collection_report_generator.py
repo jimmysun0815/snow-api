@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Lambda 采集报告生成器（详细版）
-生成包含数据质量监控的详细 HTML 报告并上传到 S3
+Lambda 采集报告生成器（完整监控版）
+使用本地 monitor_html.py 的逻辑生成详细报告
 """
 
 import json
@@ -14,7 +14,7 @@ import pytz
 
 
 class CollectionReportGenerator:
-    """采集报告生成器（详细版）"""
+    """采集报告生成器（完整监控版）"""
     
     def __init__(self, bucket_name: str = None):
         """
@@ -34,38 +34,43 @@ class CollectionReportGenerator:
         la_time = dt.astimezone(self.la_tz)
         return la_time.strftime('%Y-%m-%d %H:%M:%S %Z')
     
-    def generate_report_with_monitoring(self, stats: Dict, monitor_data: Optional[Dict] = None) -> str:
+    def generate_html_report(self, report_data: Dict) -> str:
         """
-        生成包含数据质量监控的详细报告
+        生成完整的监控 HTML 报告（与本地 monitor_html.py 一致）
         
         Args:
-            stats: 采集统计数据
-            monitor_data: 监控报告数据（来自 monitor.py）
+            report_data: 完整的监控报告数据
+                {
+                    'timestamp': str,
+                    'summary': {...},
+                    'resorts': [...],
+                    'collection_failures': [...]
+                }
         
         Returns:
             HTML 字符串
         """
-        start_time = stats.get('start_time')
-        end_time = stats.get('end_time')
-        duration = (end_time - start_time).total_seconds()
+        summary = report_data.get('summary', {})
+        resorts = report_data.get('resorts', [])
+        collection_failures = report_data.get('collection_failures', [])
+        timestamp = report_data.get('timestamp', '')
         
-        total = stats.get('total_resorts', 0)
-        success = stats.get('success_count', 0)
-        failed = stats.get('fail_count', 0)
-        success_rate = (success / total * 100) if total > 0 else 0
+        # 格式化时间（洛杉矶时间）
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            la_time = dt.astimezone(self.la_tz)
+            formatted_time = la_time.strftime('%Y-%m-%d %H:%M:%S %Z')
+        except:
+            formatted_time = timestamp
         
-        failed_resorts = stats.get('failed_resorts', [])
-        
-        # 洛杉矶时间
-        start_time_la = self.to_la_time(start_time)
-        end_time_la = self.to_la_time(end_time)
-        
-        html = f"""<!DOCTYPE html>
+        html_content = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪场数据采集报告 - {start_time_la}</title>
+    <title>雪场数据监控报告</title>
     <style>
         * {{
             margin: 0;
@@ -74,10 +79,10 @@ class CollectionReportGenerator:
         }}
         
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
             padding: 20px;
+            min-height: 100vh;
         }}
         
         .container {{
@@ -87,365 +92,556 @@ class CollectionReportGenerator:
         
         .header {{
             background: white;
-            border-radius: 16px;
-            padding: 40px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            text-align: center;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }}
         
         .header h1 {{
-            font-size: 32px;
             color: #2d3748;
+            font-size: 36px;
             margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }}
         
-        .header .time {{
+        .header .subtitle {{
             color: #718096;
-            font-size: 14px;
+            font-size: 16px;
+            margin-top: 8px;
         }}
         
-        .stats-grid {{
+        .summary-cards {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }}
         
-        .stat-card {{
+        .card {{
             background: white;
-            border-radius: 16px;
+            border-radius: 12px;
             padding: 25px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
         }}
         
-        .stat-card .label {{
+        .card:hover {{
+            transform: translateY(-5px);
+        }}
+        
+        .card-title {{
             color: #718096;
             font-size: 14px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }}
         
-        .stat-card .value {{
-            font-size: 32px;
+        .card-value {{
+            font-size: 36px;
             font-weight: bold;
             color: #2d3748;
         }}
         
-        .stat-card.success .value {{ color: #48bb78; }}
-        .stat-card.error .value {{ color: #f56565; }}
-        .stat-card.warning .value {{ color: #ed8936; }}
-        
-        .section {{
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        }}
-        
-        .section h2 {{
-            color: #2d3748;
-            font-size: 24px;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e2e8f0;
-        }}
+        .card.success .card-value {{ color: #48bb78; }}
+        .card.warning .card-value {{ color: #ed8936; }}
+        .card.error .card-value {{ color: #f56565; }}
         
         .progress-bar {{
+            width: 100%;
             height: 10px;
             background: #e2e8f0;
             border-radius: 5px;
             overflow: hidden;
-            margin: 15px 0;
+            margin-top: 15px;
         }}
         
         .progress-fill {{
             height: 100%;
             background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
+            transition: width 0.5s;
         }}
         
-        .quality-grid {{
+        .resorts-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
         }}
         
-        .quality-item {{
-            padding: 15px;
-            background: #f7fafc;
-            border-radius: 8px;
-            border-left: 4px solid #48bb78;
+        .resort-card {{
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }}
         
-        .quality-item.warning {{ border-left-color: #ed8936; }}
-        .quality-item.error {{ border-left-color: #f56565; }}
+        .resort-card.success {{
+            border-left: 5px solid #48bb78;
+        }}
         
-        .quality-item .label {{
-            color: #718096;
-            font-size: 13px;
+        .resort-card.warning {{
+            border-left: 5px solid #ed8936;
+        }}
+        
+        .resort-card.error {{
+            border-left: 5px solid #f56565;
+        }}
+        
+        .resort-card.failed {{
+            border-left: 5px solid #c53030;
+            background: linear-gradient(135deg, #ffffff 0%, #fff5f5 100%);
+        }}
+        
+        .resort-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }}
+        
+        .resort-name {{
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d3748;
             margin-bottom: 5px;
         }}
         
-        .quality-item .percentage {{
+        .resort-meta {{
+            font-size: 13px;
+            color: #718096;
+        }}
+        
+        .status-badge {{
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        
+        .status-badge.success {{
+            background: #c6f6d5;
+            color: #22543d;
+        }}
+        
+        .status-badge.warning {{
+            background: #feebc8;
+            color: #7c2d12;
+        }}
+        
+        .status-badge.error {{
+            background: #fed7d7;
+            color: #742a2a;
+        }}
+        
+        .score-display {{
+            text-align: center;
+            margin: 20px 0;
+        }}
+        
+        .score-circle {{
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             font-size: 24px;
             font-weight: bold;
-            color: #2d3748;
+            color: white;
+            margin: 0 auto;
         }}
         
-        .failed-list {{
-            list-style: none;
+        .score-circle.high {{ background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); }}
+        .score-circle.medium {{ background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); }}
+        .score-circle.low {{ background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%); }}
+        
+        .checks-list {{
+            margin-top: 15px;
         }}
         
-        .failed-item {{
-            padding: 15px;
-            margin-bottom: 10px;
-            background: #fff5f5;
-            border-left: 4px solid #f56565;
-            border-radius: 4px;
-        }}
-        
-        .failed-item .resort-name {{
-            font-weight: bold;
-            color: #2d3748;
-            margin-bottom: 5px;
-        }}
-        
-        .failed-item .error-msg {{
-            color: #718096;
-            font-size: 13px;
-        }}
-        
-        .monitor-details {{
-            margin-top: 20px;
-        }}
-        
-        .monitor-item {{
-            padding: 12px;
-            margin-bottom: 8px;
-            background: #f7fafc;
+        .check-item {{
+            padding: 8px 12px;
+            margin: 5px 0;
             border-radius: 6px;
+            font-size: 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }}
         
-        .monitor-item .label {{
-            color: #4a5568;
-            font-size: 14px;
+        .check-item.success {{
+            background: #f0fdf4;
+            color: #166534;
         }}
         
-        .monitor-item .value {{
+        .check-item.warning {{
+            background: #fffbeb;
+            color: #92400e;
+        }}
+        
+        .check-item.error {{
+            background: #fef2f2;
+            color: #991b1b;
+        }}
+        
+        .check-icon {{
+            margin-right: 8px;
+        }}
+        
+        .check-label {{
+            flex: 1;
+        }}
+        
+        .check-value {{
             font-weight: 600;
-            color: #2d3748;
+            margin-left: 10px;
+        }}
+        
+        .filter-buttons {{
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+        }}
+        
+        .filter-btn {{
+            padding: 10px 20px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }}
+        
+        .filter-btn:hover {{
+            border-color: #667eea;
+            color: #667eea;
+        }}
+        
+        .filter-btn.active {{
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }}
+        
+        .search-box {{
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }}
+        
+        .search-box:focus {{
+            outline: none;
+            border-color: #667eea;
         }}
         
         .back-link {{
             display: inline-block;
-            margin-top: 20px;
+            margin-top: 30px;
             padding: 12px 24px;
-            background: #667eea;
-            color: white;
+            background: white;
+            color: #667eea;
             text-decoration: none;
             border-radius: 8px;
-            transition: background 0.3s;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }}
         
         .back-link:hover {{
-            background: #5a67d8;
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
         }}
         
-        .badge {{
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
+        @media (max-width: 768px) {{
+            .resorts-grid {{
+                grid-template-columns: 1fr;
+            }}
         }}
-        
-        .badge.success {{ background: #c6f6d5; color: #22543d; }}
-        .badge.warning {{ background: #feebc8; color: #7c2d12; }}
-        .badge.error {{ background: #fed7d7; color: #742a2a; }}
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>🏔️ 雪场数据采集报告</h1>
-            <div class="time">
-                📅 采集时间: {start_time_la} - {end_time_la.split()[-2]}<br>
-                ⏱️ 执行时长: {int(duration // 60)} 分 {int(duration % 60)} 秒
+            <h1>
+                <span>🏔️</span>
+                雪场数据采集报告
+            </h1>
+            <div class="subtitle">
+                📅 采集时间: {formatted_time}
             </div>
         </div>
         
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="label">📊 总雪场数</div>
-                <div class="value">{total}</div>
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="card">
+                <div class="card-title">📊 总雪场数</div>
+                <div class="card-value">{summary.get('collection_total', summary.get('total', 0))}</div>
             </div>
             
-            <div class="stat-card success">
-                <div class="label">✅ 采集成功</div>
-                <div class="value">{success}</div>
+            <div class="card success">
+                <div class="card-title">✅ 采集成功</div>
+                <div class="card-value">{summary.get('collection_success', summary.get('total', 0))}</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {summary.get('collection_success', summary.get('total', 0)) / max(summary.get('collection_total', summary.get('total', 1)), 1) * 100}%; background: #48bb78;"></div>
+                </div>
             </div>
             
-            <div class="stat-card error">
-                <div class="label">❌ 采集失败</div>
-                <div class="value">{failed}</div>
+            <div class="card error">
+                <div class="card-title">❌ 采集失败</div>
+                <div class="card-value">{summary.get('collection_failed', 0)}</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {summary.get('collection_failed', 0) / max(summary.get('collection_total', summary.get('total', 1)), 1) * 100}%; background: #f56565;"></div>
+                </div>
             </div>
             
-            <div class="stat-card">
-                <div class="label">📈 成功率</div>
-                <div class="value">{success_rate:.1f}%</div>
+            <div class="card success">
+                <div class="card-title">✅ 数据完整</div>
+                <div class="card-value">{summary.get('success', 0)}</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {summary.get('success', 0) / max(summary.get('collection_success', summary.get('total', 1)), 1) * 100}%; background: #48bb78;"></div>
+                </div>
+            </div>
+            
+            <div class="card warning">
+                <div class="card-title">⚠️ 数据不完整</div>
+                <div class="card-value">{summary.get('warning', 0)}</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {summary.get('warning', 0) / max(summary.get('collection_success', summary.get('total', 1)), 1) * 100}%; background: #ed8936;"></div>
+                </div>
+            </div>
+            
+            <div class="card error">
+                <div class="card-title">❌ 数据错误</div>
+                <div class="card-value">{summary.get('error', 0)}</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {summary.get('error', 0) / max(summary.get('collection_success', summary.get('total', 1)), 1) * 100}%; background: #f56565;"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📈 成功率</div>
+                <div class="card-value" style="color: #667eea;">{(summary.get('collection_success', 0) / max(summary.get('collection_total', 1), 1) * 100):.1f}%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {(summary.get('collection_success', 0) / max(summary.get('collection_total', 1), 1) * 100)}%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);"></div>
+                </div>
             </div>
         </div>
         
-        <div class="section">
-            <h2>采集进度</h2>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: {success_rate}%"></div>
-            </div>
-            <p style="color: #718096; text-align: center;">
-                {success} / {total} 个雪场采集成功
-            </p>
+        <!-- Filters -->
+        <div class="filter-buttons">
+            <button class="filter-btn active" onclick="filterResorts('all')">全部 ({summary.get('collection_total', summary.get('total', 0))})</button>
+            <button class="filter-btn" onclick="filterResorts('success')">✅ 正常 ({summary.get('success', 0)})</button>
+            <button class="filter-btn" onclick="filterResorts('warning')">⚠️ 警告 ({summary.get('warning', 0)})</button>
+            <button class="filter-btn" onclick="filterResorts('error')">❌ 错误 ({summary.get('error', 0)})</button>
+            <button class="filter-btn" onclick="filterResorts('failed')">🚫 采集失败 ({summary.get('collection_failed', 0)})</button>
+            <input type="text" class="search-box" placeholder="搜索雪场名称..." onkeyup="searchResorts(this.value)">
         </div>
+        
+        <!-- Resorts Grid -->
+        <div class="resorts-grid" id="resorts-grid">
 """
         
-        # 数据质量监控部分
-        if monitor_data:
-            html += self._generate_monitoring_section(monitor_data)
-        
-        # 失败详情
-        if failed_resorts:
-            # 按错误类型分组
-            errors_by_type = {}
-            for resort in failed_resorts:
-                error = resort.get('error', 'Unknown error')
-                # 简化错误类型
-                error_type = 'UNKNOWN'
-                if 'NO_DATA' in error or '采集器返回空数据' in error:
-                    error_type = 'NO_DATA'
-                elif 'connection' in error.lower() or 'concurrent operations' in error:
-                    error_type = 'CONNECTION_ERROR'
-                elif 'timeout' in error.lower():
-                    error_type = 'TIMEOUT'
-                elif 'HTTP' in error:
-                    error_type = 'HTTP_ERROR'
+        # 生成每个雪场的卡片
+        for resort in sorted(resorts, key=lambda r: r.get('score', 0)):
+            status = resort.get('overall_status', 'success')
+            score = resort.get('score', 0)
+            
+            # 确定分数等级
+            if score >= 80:
+                score_class = 'high'
+            elif score >= 50:
+                score_class = 'medium'
+            else:
+                score_class = 'low'
+            
+            # 状态图标
+            status_icons = {
+                'success': '✅',
+                'warning': '⚠️',
+                'error': '❌'
+            }
+            status_icon = status_icons.get(status, '❓')
+            
+            html_content += f"""
+            <div class="resort-card {status}" data-status="{status}" data-name="{resort.get('resort_name', '').lower()}">
+                <div class="resort-header">
+                    <div>
+                        <div class="resort-name">{resort.get('resort_name', 'Unknown')}</div>
+                        <div class="resort-meta">
+                            ID: {resort.get('resort_id', 'N/A')} | 数据源: {resort.get('data_source', 'N/A')}
+                        </div>
+                    </div>
+                    <span class="status-badge {status}">{status_icon} {status.upper()}</span>
+                </div>
                 
-                if error_type not in errors_by_type:
-                    errors_by_type[error_type] = []
-                errors_by_type[error_type].append(resort)
+                <div class="score-display">
+                    <div class="score-circle {score_class}">{score:.0f}%</div>
+                </div>
+                
+                <div class="checks-list">
+"""
             
-            html += """
-        <div class="section">
-            <h2>❌ 失败详情</h2>
+            # 只显示有问题的检查项
+            checks = resort.get('checks', [])
+            problem_checks = [c for c in checks if c.get('status') in ['error', 'warning']]
+            
+            if problem_checks:
+                for check in problem_checks[:10]:  # 最多显示10个问题
+                    check_status = check.get('status', 'success')
+                    check_icon = status_icons.get(check_status, '•')
+                    value_str = str(check.get('value', ''))
+                    if value_str and value_str != 'None':
+                        value_display = f"<span class='check-value'>{value_str}</span>"
+                    else:
+                        value_display = ""
+                    
+                    html_content += f"""
+                    <div class="check-item {check_status}">
+                        <span class="check-icon">{check_icon}</span>
+                        <span class="check-label">{check.get('field', 'Unknown')}: {check.get('message', '')}</span>
+                        {value_display}
+                    </div>
 """
-            for error_type, resorts in errors_by_type.items():
-                html += f"""
-            <h3 style="color: #4a5568; margin: 20px 0 10px 0;">{error_type}: {len(resorts)} 个</h3>
-            <ul class="failed-list">
+            else:
+                html_content += """
+                    <div class="check-item success">
+                        <span class="check-icon">✅</span>
+                        <span class="check-label">所有数据检查通过</span>
+                    </div>
 """
-                for resort in resorts[:10]:  # 每种类型最多显示10个
-                    html += f"""
-                <li class="failed-item">
-                    <div class="resort-name">{resort.get('name', 'Unknown')}</div>
-                    <div class="error-msg">{resort.get('error', 'Unknown error')[:200]}</div>
-                </li>
-"""
-                if len(resorts) > 10:
-                    html += f"""
-                <li style="padding: 10px; color: #718096; text-align: center;">
-                    ...还有 {len(resorts) - 10} 个雪场
-                </li>
-"""
-                html += """
-            </ul>
-"""
-            html += """
-        </div>
+            
+            html_content += """
+                </div>
+            </div>
 """
         
-        html += """
+        # 添加采集失败的雪场卡片
+        for failure in collection_failures:
+            error_type = failure.get('error_type', 'UNKNOWN')
+            error_message = failure.get('error_message', '未知错误')
+            url = failure.get('url', 'N/A')
+            timestamp_str = failure.get('timestamp', '')
+            
+            # 格式化时间
+            try:
+                dt = datetime.fromisoformat(timestamp_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                la_time = dt.astimezone(self.la_tz)
+                fail_time = la_time.strftime('%H:%M:%S')
+            except:
+                fail_time = timestamp_str
+            
+            # 错误类型对应的图标和说明
+            error_type_map = {
+                'HTTP_404': ('🔗', '页面不存在 (404)'),
+                'TIMEOUT': ('⏱️', '请求超时'),
+                'CONNECTION_ERROR': ('📡', '连接错误'),
+                'JSON_ERROR': ('📄', 'JSON解析错误'),
+                'NO_DATA': ('📭', '无数据返回'),
+                'UNKNOWN': ('❓', '未知错误')
+            }
+            
+            error_icon, error_title = error_type_map.get(error_type, ('❓', error_type))
+            
+            html_content += f"""
+            <div class="resort-card failed" data-status="failed" data-name="{failure.get('resort_name', '').lower()}">
+                <div class="resort-header">
+                    <div>
+                        <div class="resort-name">{failure.get('resort_name', 'Unknown')}</div>
+                        <div class="resort-meta">
+                            ID: {failure.get('resort_id', 'N/A')} | 失败时间: {fail_time}
+                        </div>
+                    </div>
+                    <span class="status-badge error">🚫 采集失败</span>
+                </div>
+                
+                <div class="score-display">
+                    <div class="score-circle low">{error_icon}</div>
+                </div>
+                
+                <div class="checks-list">
+                    <div class="check-item error">
+                        <span class="check-icon">❌</span>
+                        <span class="check-label"><strong>{error_title}</strong></span>
+                    </div>
+                    <div class="check-item error">
+                        <span class="check-icon">💬</span>
+                        <span class="check-label">{error_message[:200]}</span>
+                    </div>
+                    <div class="check-item error" style="word-break: break-all;">
+                        <span class="check-icon">🔗</span>
+                        <span class="check-label" style="font-size: 12px;">{url[:100]}</span>
+                    </div>
+                </div>
+            </div>
+"""
+        
+        # 结束 HTML
+        html_content += """
+        </div>
+        
         <div style="text-align: center;">
             <a href="/" class="back-link">← 返回报告列表</a>
         </div>
     </div>
+    
+    <script>
+        function filterResorts(status) {
+            const cards = document.querySelectorAll('.resort-card');
+            const buttons = document.querySelectorAll('.filter-btn');
+            
+            // Update active button
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Filter cards
+            cards.forEach(card => {
+                if (status === 'all' || card.dataset.status === status) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
+        function searchResorts(query) {
+            const cards = document.querySelectorAll('.resort-card');
+            const searchTerm = query.toLowerCase();
+            
+            cards.forEach(card => {
+                const name = card.dataset.name;
+                if (name.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+    </script>
 </body>
 </html>
 """
-        return html
-    
-    def _generate_monitoring_section(self, monitor_data: Dict) -> str:
-        """生成数据质量监控部分的 HTML"""
-        summary = monitor_data.get('summary', {})
-        resorts = monitor_data.get('resorts', [])
         
-        total_checked = summary.get('total_resorts', 0)
-        good_count = summary.get('status_counts', {}).get('good', 0)
-        warning_count = summary.get('status_counts', {}).get('warning', 0)
-        error_count = summary.get('status_counts', {}).get('error', 0)
-        
-        html = f"""
-        <div class="section">
-            <h2>📊 数据质量监控</h2>
-            
-            <div class="quality-grid">
-                <div class="quality-item">
-                    <div class="label">✅ 数据完整</div>
-                    <div class="percentage">{good_count}</div>
-                </div>
-                <div class="quality-item warning">
-                    <div class="label">⚠️ 数据警告</div>
-                    <div class="percentage">{warning_count}</div>
-                </div>
-                <div class="quality-item error">
-                    <div class="label">❌ 数据异常</div>
-                    <div class="percentage">{error_count}</div>
-                </div>
-                <div class="quality-item">
-                    <div class="label">📈 数据质量率</div>
-                    <div class="percentage">{(good_count/total_checked*100) if total_checked > 0 else 0:.1f}%</div>
-                </div>
-            </div>
-            
-            <div class="monitor-details">
-                <h3 style="color: #4a5568; margin: 20px 0 10px 0;">字段完整度</h3>
-"""
-        
-        # 字段统计
-        field_stats = summary.get('field_stats', {})
-        for field, stats in list(field_stats.items())[:10]:  # 显示前10个字段
-            total = stats.get('total', 0)
-            present = stats.get('present', 0)
-            percentage = (present / total * 100) if total > 0 else 0
-            
-            badge_class = 'success' if percentage > 90 else ('warning' if percentage > 70 else 'error')
-            
-            html += f"""
-                <div class="monitor-item">
-                    <span class="label">{field}</span>
-                    <span><span class="badge {badge_class}">{percentage:.1f}%</span> ({present}/{total})</span>
-                </div>
-"""
-        
-        html += """
-            </div>
-        </div>
-"""
-        
-        return html
-    
-    def generate_report_html(self, stats: Dict) -> str:
-        """
-        生成采集报告 HTML（兼容旧接口）
-        
-        Args:
-            stats: 采集统计数据
-        
-        Returns:
-            HTML 字符串
-        """
-        return self.generate_report_with_monitoring(stats, None)
+        return html_content
     
     def upload_report(self, html_content: str, filename: str) -> str:
         """

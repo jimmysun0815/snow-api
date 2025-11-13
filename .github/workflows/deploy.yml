@@ -223,15 +223,42 @@ jobs:
                   return None
           
           def generate_and_upload_report(report_generator, stats, monitor_data):
-              """生成并上传报告（含数据质量监控）"""
+              """生成并上传报告（完整监控格式）"""
               try:
-                  html_content = report_generator.generate_report_with_monitoring(stats, monitor_data)
+                  # 构建完整的监控报告数据（与本地 monitor_html.py 一致）
+                  report_data = {
+                      'timestamp': stats['start_time'].isoformat(),
+                      'summary': {},
+                      'resorts': [],
+                      'collection_failures': stats.get('failed_resorts', [])
+                  }
+                  
+                  # 填充 summary
+                  if monitor_data and 'summary' in monitor_data:
+                      report_data['summary'] = monitor_data['summary'].copy()
+                  
+                  # 添加采集统计到 summary
+                  report_data['summary']['collection_total'] = stats.get('total_resorts', 0)
+                  report_data['summary']['collection_success'] = stats.get('success_count', 0)
+                  report_data['summary']['collection_failed'] = stats.get('fail_count', 0)
+                  
+                  # 填充 resorts（监控详情）
+                  if monitor_data and 'resorts' in monitor_data:
+                      report_data['resorts'] = monitor_data['resorts']
+                  
+                  # 生成 HTML
+                  html_content = report_generator.generate_html_report(report_data)
+                  
+                  # 上传报告
                   timestamp = stats['start_time'].strftime('%Y%m%d_%H%M%S')
                   filename = f"report_{timestamp}.html"
                   report_url = report_generator.upload_report(html_content, filename)
                   print(f"✅ 报告已生成: {report_url}")
+                  
+                  # 更新索引
                   report_generator.update_index()
                   print(f"✅ 索引页面已更新")
+                  
                   return report_url
               except Exception as e:
                   print(f"⚠️  报告生成失败: {e}")
