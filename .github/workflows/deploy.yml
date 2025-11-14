@@ -198,20 +198,32 @@ jobs:
                   os.unlink(temp_file)
                   
                   if reports:
+                      # 将 dataclass 对象转换为字典
+                      from dataclasses import asdict
+                      reports_dict = [asdict(r) for r in reports]
+                      
                       # 生成监控报告数据
                       monitor_data = {
                           'summary': {
-                              'total_resorts': len(reports),
+                              'total_resorts': len(reports_dict),
                               'status_counts': {
-                                  'good': sum(1 for r in reports if r['status'] == 'good'),
-                                  'warning': sum(1 for r in reports if r['status'] == 'warning'),
-                                  'error': sum(1 for r in reports if r['status'] == 'error')
+                                  'good': sum(1 for r in reports if r.overall_status == 'good'),
+                                  'success': sum(1 for r in reports if r.overall_status == 'success'),
+                                  'warning': sum(1 for r in reports if r.overall_status == 'warning'),
+                                  'error': sum(1 for r in reports if r.overall_status == 'error')
                               },
                               'field_stats': monitor.calculate_field_stats(reports)
                           },
-                          'resorts': reports
+                          'resorts': reports_dict
                       }
-                      print(f"✅ 数据质量监控完成: {len(reports)} 个雪场")
+                      
+                      # 修正状态计数的键名（本地 HTML 使用 'success' 而不是 'good'）
+                      monitor_data['summary']['success'] = monitor_data['summary']['status_counts'].get('good', 0) + monitor_data['summary']['status_counts'].get('success', 0)
+                      monitor_data['summary']['warning'] = monitor_data['summary']['status_counts']['warning']
+                      monitor_data['summary']['error'] = monitor_data['summary']['status_counts']['error']
+                      
+                      print(f"✅ 数据质量监控完成: {len(reports_dict)} 个雪场")
+                      print(f"   正常: {monitor_data['summary']['success']}, 警告: {monitor_data['summary']['warning']}, 错误: {monitor_data['summary']['error']}")
                       return monitor_data
                   else:
                       print("⚠️ 监控未返回数据")
