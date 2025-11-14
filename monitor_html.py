@@ -32,6 +32,7 @@ def generate_html_report(json_report_file: str, html_output_file: str):
     resorts = report_data.get('resorts', [])
     collection_failures = report_data.get('collection_failures', [])
     timestamp = report_data.get('timestamp', '')
+    duration_seconds = report_data.get('duration_seconds', 0)
     
     # 格式化时间
     try:
@@ -39,6 +40,17 @@ def generate_html_report(json_report_file: str, html_output_file: str):
         formatted_time = dt.strftime('%Y年%m月%d日 %H:%M:%S')
     except:
         formatted_time = timestamp
+    
+    # 格式化运行时长
+    if duration_seconds > 0:
+        minutes = int(duration_seconds // 60)
+        seconds = int(duration_seconds % 60)
+        if minutes > 0:
+            duration_str = f" | ⏱️ 执行时长: {minutes} 分 {seconds} 秒"
+        else:
+            duration_str = f" | ⏱️ 执行时长: {seconds} 秒"
+    else:
+        duration_str = ""
     
     # 生成 HTML
     html_content = f"""<!DOCTYPE html>
@@ -348,7 +360,7 @@ def generate_html_report(json_report_file: str, html_output_file: str):
                 雪场数据监控报告
             </h1>
             <div class="subtitle">
-                最后更新: {formatted_time}
+                最后更新: {formatted_time}{duration_str}
             </div>
         </div>
         

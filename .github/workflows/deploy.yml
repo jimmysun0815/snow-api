@@ -77,7 +77,7 @@ jobs:
           
           from resort_manager import ResortDataManager
           from failure_tracker import CollectionFailureTracker
-          from collection_report_generator import CollectionReportGenerator
+          from s3_uploader import S3ReportUploader
           from monitor import DataMonitor
           
           def lambda_handler(event, context):
@@ -86,7 +86,7 @@ jobs:
               start_time = datetime.now()
               limit = event.get('limit')
               resort_id = event.get('resort_id')
-              report_generator = CollectionReportGenerator()
+              uploader = S3ReportUploader()
               
               try:
                   manager = ResortDataManager(config_file='resorts_config.json')
@@ -113,18 +113,18 @@ jobs:
                           stats = {
                               'start_time': start_time, 'end_time': end_time,
                               'total_resorts': 1, 'success_count': 1, 'fail_count': 0,
-                              'failed_resorts': []
-                          }
-                          generate_and_upload_report(report_generator, stats, monitor_data)
+                          'failed_resorts': []
+                      }
+                      generate_and_upload_report(uploader, stats, monitor_data)
                           return {'statusCode': 200, 'body': json.dumps({'message': 'Data collected successfully', 'resort': resort_config.get('name')})}
                       else:
                           end_time = datetime.now()
                           stats = {
                               'start_time': start_time, 'end_time': end_time,
                               'total_resorts': 1, 'success_count': 0, 'fail_count': 1,
-                              'failed_resorts': [{'name': resort_config.get('name'), 'error': 'Collection failed'}]
-                          }
-                          generate_and_upload_report(report_generator, stats, None)
+                          'failed_resorts': [{'name': resort_config.get('name'), 'error': 'Collection failed'}]
+                      }
+                      generate_and_upload_report(uploader, stats, None)
                           return {'statusCode': 500, 'body': json.dumps({'error': 'Collection failed'})}
                   
                   # 批量采集
@@ -152,7 +152,7 @@ jobs:
                       'fail_count': len(failure_tracker.failures),
                       'failed_resorts': failure_tracker.failures
                   }
-                  report_url = generate_and_upload_report(report_generator, stats, monitor_data)
+                  report_url = generate_and_upload_report(uploader, stats, monitor_data)
                   
                   return {
                       'statusCode': 200,
@@ -175,7 +175,7 @@ jobs:
                       'failed_resorts': [{'name': 'System Error', 'error': str(e)}]
                   }
                   try:
-                      generate_and_upload_report(report_generator, stats, None)
+                      generate_and_upload_report(uploader, stats, None)
                   except:
                       pass
                   return {'statusCode': 500, 'body': json.dumps({'error': str(e), 'errorType': type(e).__name__})}
@@ -234,15 +234,19 @@ jobs:
                   traceback.print_exc()
                   return None
           
-          def generate_and_upload_report(report_generator, stats, monitor_data):
+          def generate_and_upload_report(uploader, stats, monitor_data):
               """生成并上传报告（使用本地 monitor_html.py 的逻辑）"""
               try:
                   from monitor_html import generate_html_report as generate_monitor_html
                   import tempfile
                   
+                  # 计算运行时长
+                  duration_seconds = (stats['end_time'] - stats['start_time']).total_seconds()
+                  
                   # 构建完整的监控报告数据（与本地 collect_data.py 一致）
                   report_data = {
                       'timestamp': stats['start_time'].isoformat(),
+                      'duration_seconds': duration_seconds,
                       'summary': {},
                       'resorts': [],
                       'collection_failures': stats.get('failed_resorts', [])
@@ -260,7 +264,7 @@ jobs:
                   report_data['summary']['collection_success'] = stats.get('success_count', 0)
                   report_data['summary']['collection_failed'] = stats.get('fail_count', 0)
                   
-                  print(f"📊 报告数据: {len(report_data.get('resorts', []))} 个雪场, {len(report_data.get('collection_failures', []))} 个失败")
+                  print(f"📊 报告数据: {len(report_data.get('resorts', []))} 个雪场, {len(report_data.get('collection_failures', []))} 个失败, 运行时长: {int(duration_seconds)}秒")
                   
                   # 保存 JSON 到临时文件
                   with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as json_file:
@@ -284,11 +288,11 @@ jobs:
                   # 上传报告
                   timestamp = stats['start_time'].strftime('%Y%m%d_%H%M%S')
                   filename = f"report_{timestamp}.html"
-                  report_url = report_generator.upload_report(html_content, filename)
+                  report_url = uploader.upload_report(html_content, filename)
                   print(f"✅ 报告已生成: {report_url}")
                   
                   # 更新索引
-                  report_generator.update_index()
+                  uploader.update_index()
                   print(f"✅ 索引页面已更新")
                   
                   return report_url
