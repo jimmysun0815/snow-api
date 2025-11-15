@@ -37,8 +37,16 @@ def get_resorts_from_rds():
     if not database_url:
         raise ValueError("❌ 未设置 DATABASE_URL 环境变量")
     
+    print(f"🔗 数据库连接: {database_url[:20]}...（已隐藏敏感信息）")
+    
     # 连接 RDS
-    engine = create_engine(database_url, echo=False)
+    try:
+        engine = create_engine(database_url, echo=False)
+    except Exception as e:
+        print(f"❌ 创建数据库引擎失败: {e}")
+        print(f"📋 DATABASE_URL 格式应该是: postgresql://user:password@host:port/database")
+        raise
+    
     Session = sessionmaker(bind=engine)
     session = Session()
     
