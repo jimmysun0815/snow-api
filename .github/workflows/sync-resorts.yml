@@ -1,0 +1,58 @@
+name: Sync Resorts to Supabase
+
+# 触发条件：
+# 1. 每天美西凌晨 2 点自动执行（UTC 10:00 = PST 02:00 / PDT 03:00）
+# 2. 推送到 sync-resorts 分支时手动触发
+# 3. 在 GitHub Actions 页面手动触发
+on:
+  schedule:
+    - cron: '0 10 * * *'  # 每天 UTC 10:00 (美西时间 02:00 PST / 03:00 PDT)
+  
+  push:
+    branches:
+      - sync-resorts  # 推送到此分支时触发
+  
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install supabase python-dotenv
+      
+      - name: Run sync script
+        run: |
+          python sync_resorts_to_supabase.py
+        env:
+          # API 地址（使用生产环境 API）
+          API_BASE_URL: https://api.steponsnow.com
+          
+          # Supabase 连接信息
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "✅ 雪场数据同步成功！"
+          echo "⏰ 同步时间: $(date)"
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ 雪场数据同步失败！"
+          echo "请检查日志并修复问题"
+

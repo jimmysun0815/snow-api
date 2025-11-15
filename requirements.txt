@@ -12,4 +12,5 @@ serverless-wsgi>=3.0.0
 firebase-admin>=6.2.0
 typing-extensions>=4.5.0
 pytz>=2023.3
+supabase>=2.7.4
 
