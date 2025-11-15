@@ -2,90 +2,80 @@
 # -*- coding: utf-8 -*-
 """
 同步雪场数据从 AWS RDS 到 Supabase
-用于管理后台访问雪场信息
+通过 API Gateway 获取数据（不直接连接 RDS）
 
 运行方式：
     python sync_resorts_to_supabase.py
 
 环境变量：
-    DATABASE_URL: AWS RDS PostgreSQL 连接字符串
+    API_BASE_URL: 后端 API 地址（默认：https://api.steponsnow.com）
     SUPABASE_URL: Supabase 项目 URL
     SUPABASE_SERVICE_KEY: Supabase Service Key
 """
 
 import os
 import sys
+import requests
 from datetime import datetime
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
 
-# 导入模型
-from models import Resort
-
-def get_resorts_from_rds():
-    """从 AWS RDS 读取所有雪场数据"""
+def get_resorts_from_api():
+    """通过 API 获取所有雪场数据"""
     print("=" * 80)
-    print("📡 从 AWS RDS 读取雪场数据...")
+    print("📡 通过 API 获取雪场数据...")
     print("=" * 80)
     
-    database_url = os.getenv('DATABASE_URL')
-    if not database_url:
-        raise ValueError("❌ 未设置 DATABASE_URL 环境变量")
+    api_base_url = os.getenv('API_BASE_URL', 'https://api.steponsnow.com')
+    api_url = f"{api_base_url}/api/resorts/summary"
     
-    print(f"🔗 数据库连接: {database_url[:20]}...（已隐藏敏感信息）")
-    
-    # 连接 RDS
-    try:
-        engine = create_engine(database_url, echo=False)
-    except Exception as e:
-        print(f"❌ 创建数据库引擎失败: {e}")
-        print(f"📋 DATABASE_URL 格式应该是: postgresql://user:password@host:port/database")
-        raise
-    
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    print(f"🔗 API 地址: {api_url}")
     
     try:
-        # 查询所有雪场
-        resorts = session.query(Resort).all()
-        print(f"✅ 从 RDS 读取到 {len(resorts)} 个雪场")
+        # 调用 API
+        response = requests.get(api_url, timeout=30)
+        response.raise_for_status()
         
-        # 转换为字典列表
+        data = response.json()
+        resorts = data.get('resorts', [])
+        
+        print(f"✅ 从 API 获取到 {len(resorts)} 个雪场")
+        
+        # 格式化数据（添加同步时间戳）
         resort_data = []
         for r in resorts:
             resort_data.append({
-                'id': r.id,
-                'name': r.name,
-                'slug': r.slug,
-                'location': r.location,
-                'lat': r.lat,
-                'lon': r.lon,
-                'elevation_min': r.elevation_min,
-                'elevation_max': r.elevation_max,
-                'address': r.address,
-                'city': r.city,
-                'zip_code': r.zip_code,
-                'phone': r.phone,
-                'website': r.website,
-                'data_source': r.data_source,
-                'source_url': r.source_url,
-                'enabled': r.enabled,
+                'id': r.get('id'),
+                'name': r.get('name'),
+                'slug': r.get('slug'),
+                'location': r.get('location'),
+                'lat': r.get('lat'),
+                'lon': r.get('lon'),
+                'elevation_min': r.get('elevation_min'),
+                'elevation_max': r.get('elevation_max'),
+                'address': r.get('address'),
+                'city': r.get('city'),
+                'zip_code': r.get('zip_code'),
+                'phone': r.get('phone'),
+                'website': r.get('website'),
+                'data_source': r.get('data_source'),
+                'source_url': r.get('source_url'),
+                'enabled': r.get('enabled', True),
                 'synced_at': datetime.now().isoformat(),
-                'updated_at': r.updated_at.isoformat() if r.updated_at else None,
+                'updated_at': r.get('updated_at'),
             })
         
         return resort_data
     
-    except Exception as e:
-        print(f"❌ 读取 RDS 数据失败: {e}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ API 请求失败: {e}")
         raise
-    finally:
-        session.close()
+    except Exception as e:
+        print(f"❌ 处理数据失败: {e}")
+        raise
 
 def sync_to_supabase(resort_data):
     """将雪场数据同步到 Supabase"""
@@ -135,14 +125,14 @@ def main():
     print("\n")
     print("=" * 80)
     print("🔄 雪场数据同步工具")
-    print("   AWS RDS → Supabase")
+    print("   API Gateway → Supabase")
     print("=" * 80)
     print(f"⏰ 开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80)
     
     try:
-        # 步骤 1: 从 RDS 读取
-        resort_data = get_resorts_from_rds()
+        # 步骤 1: 从 API 获取
+        resort_data = get_resorts_from_api()
         
         # 步骤 2: 同步到 Supabase
         sync_to_supabase(resort_data)

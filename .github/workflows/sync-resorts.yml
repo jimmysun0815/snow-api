@@ -37,8 +37,8 @@ jobs:
         run: |
           python sync_resorts_to_supabase.py
         env:
-          # AWS RDS 连接信息（组合成完整的 DATABASE_URL）
-          DATABASE_URL: postgresql://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@${{ secrets.DB_HOST }}:5432/${{ secrets.DB_NAME }}
+          # API 地址（使用生产环境 API）
+          API_BASE_URL: https://api.steponsnow.com
           
           # Supabase 连接信息
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
