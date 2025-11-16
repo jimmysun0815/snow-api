@@ -31,6 +31,11 @@ class Resort(Base):
     phone = Column(String(100))  # 电话
     website = Column(Text)  # 官网
     
+    # 营业时间
+    opening_hours_weekday = Column(Text)  # JSON 数组字符串（weekday_text）
+    opening_hours_data = Column(JSON)     # 详细数据（periods）
+    is_open_now = Column(Boolean)         # 当前是否营业
+    
     data_source = Column(String(50))
     source_url = Column(Text)
     source_id = Column(String(100))

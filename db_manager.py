@@ -261,6 +261,12 @@ class DatabaseManager:
                 'zip_code': resort.zip_code,
                 'phone': resort.phone,
                 'website': resort.website,
+                # 营业时间
+                'opening_hours': {
+                    'weekday_text': json.loads(resort.opening_hours_weekday) if resort.opening_hours_weekday else None,
+                    'periods': resort.opening_hours_data,
+                    'open_now': resort.is_open_now
+                } if resort.opening_hours_weekday or resort.opening_hours_data else None,
             }
             
             # 添加雪况数据
@@ -321,10 +327,25 @@ class DatabaseManager:
                     'last_update': latest_weather.timestamp.isoformat()
                 }
             
-            # 查询最新的 webcam 数据
-            latest_webcams = self.session.query(ResortWebcam).filter_by(
-                resort_id=resort.id
-            ).order_by(desc(ResortWebcam.timestamp)).limit(20).all()
+            # 查询最新的 webcam 数据（按 webcam_uuid 去重，每个只取最新的）
+            # 使用子查询获取每个 webcam_uuid 的最新 timestamp
+            from sqlalchemy import func
+            latest_webcam_subquery = self.session.query(
+                ResortWebcam.webcam_uuid,
+                func.max(ResortWebcam.timestamp).label('max_timestamp')
+            ).filter(
+                ResortWebcam.resort_id == resort.id
+            ).group_by(
+                ResortWebcam.webcam_uuid
+            ).subquery()
+            
+            latest_webcams = self.session.query(ResortWebcam).join(
+                latest_webcam_subquery,
+                (ResortWebcam.webcam_uuid == latest_webcam_subquery.c.webcam_uuid) &
+                (ResortWebcam.timestamp == latest_webcam_subquery.c.max_timestamp)
+            ).filter(
+                ResortWebcam.resort_id == resort.id
+            ).all()
             
             if latest_webcams:
                 data['webcams'] = [
@@ -601,6 +622,24 @@ class DatabaseManager:
             if contact_info.get('website'):
                 resort.website = contact_info.get('website')
                 updated_fields.append('网站')
+            
+            # 保存营业时间
+            opening_hours = contact_info.get('opening_hours')
+            if opening_hours:
+                import json as json_module
+                # 保存 weekday_text（人类可读格式）
+                if opening_hours.get('weekday_text'):
+                    resort.opening_hours_weekday = json_module.dumps(opening_hours['weekday_text'], ensure_ascii=False)
+                    updated_fields.append('营业时间')
+                
+                # 保存 periods（详细数据）
+                if opening_hours.get('periods'):
+                    resort.opening_hours_data = opening_hours['periods']
+                
+                # 保存当前营业状态
+                if 'open_now' in opening_hours:
+                    resort.is_open_now = opening_hours['open_now']
+                    updated_fields.append('营业状态')
             
             # 可选：更新经纬度（Google Maps 的可能更准确）
             geometry = contact_info.get('geometry')

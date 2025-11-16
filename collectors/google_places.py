@@ -187,7 +187,9 @@ class GooglePlacesCollector(BaseCollector):
                     'user_ratings_total': result.get('user_ratings_total'),
                     'place_id': place_id,
                     # 保留经纬度（可能更准确）
-                    'geometry': result.get('geometry', {}).get('location')
+                    'geometry': result.get('geometry', {}).get('location'),
+                    # 营业时间
+                    'opening_hours': result.get('opening_hours')
                 }
                 
                 return contact_info
