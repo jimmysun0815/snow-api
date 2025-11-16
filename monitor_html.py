@@ -491,7 +491,7 @@ def generate_html_report(json_report_file: str, html_output_file: str):
                 html_content += f"""
                     <div class="check-item {check_status}">
                         <span class="check-icon">{check_icon}</span>
-                        <span class="check-label">{check.get('field', 'Unknown')}: {check.get('message', '')}</span>
+                        <span class="check-label">{check.get('field_name', check.get('field', 'Unknown'))}: {check.get('message', '')}</span>
                         {value_display}
                     </div>
 """
