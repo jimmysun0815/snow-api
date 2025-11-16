@@ -435,6 +435,8 @@ jobs:
           import os
           from datetime import datetime
           import traceback
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+          import threading
           
           sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
           
@@ -451,7 +453,6 @@ jobs:
               
               try:
                   # 加载配置
-                  import json
                   with open('resorts_config.json', 'r', encoding='utf-8') as f:
                       config = json.load(f)
                   resorts = config.get('resorts', [])
@@ -509,10 +510,6 @@ jobs:
                   success_count = 0
                   fail_count = 0
                   failed_resorts = []
-                  
-                  # 使用多线程并发采集
-                  from concurrent.futures import ThreadPoolExecutor, as_completed
-                  import threading
                   
                   print_lock = threading.Lock()
                   
