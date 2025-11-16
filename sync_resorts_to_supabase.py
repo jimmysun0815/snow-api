@@ -96,8 +96,35 @@ def sync_to_supabase(resort_data):
     supabase: Client = create_client(supabase_url, supabase_key)
     
     try:
+        # 检查表结构（通过尝试查询这些字段）
+        print("🔍 检查 Supabase 表结构...")
+        try:
+            test_query = supabase.table('resorts').select(
+                'id, name, opening_hours_weekday, opening_hours_data, is_open_now'
+            ).limit(1).execute()
+            print("✅ 表结构包含营业时间字段")
+        except Exception as e:
+            print(f"⚠️  表结构检查失败: {e}")
+            print("💡 请确认 Supabase 的 resorts 表中已添加以下列：")
+            print("   - opening_hours_weekday (TEXT)")
+            print("   - opening_hours_data (JSONB)")
+            print("   - is_open_now (BOOLEAN)")
+            print()
+        
         # 批量 upsert（如果存在则更新，不存在则插入）
         print(f"🔄 开始 upsert {len(resort_data)} 条数据...")
+        
+        # 打印第一条数据的字段，用于调试
+        if resort_data:
+            print(f"📋 数据字段示例（第一个雪场）：")
+            first_resort = resort_data[0]
+            for key in ['id', 'name', 'opening_hours_weekday', 'is_open_now']:
+                value = first_resort.get(key)
+                if isinstance(value, str) and len(value) > 50:
+                    print(f"   {key}: {value[:50]}...")
+                else:
+                    print(f"   {key}: {value}")
+            print()
         
         # Supabase 的 upsert 有批量限制，我们分批处理
         batch_size = 100
@@ -105,7 +132,11 @@ def sync_to_supabase(resort_data):
         
         for i in range(0, len(resort_data), batch_size):
             batch = resort_data[i:i + batch_size]
-            response = supabase.table('resorts').upsert(batch).execute()
+            # onConflict='id' 确保按 id 字段进行 upsert
+            response = supabase.table('resorts').upsert(
+                batch,
+                on_conflict='id'  # 明确指定按 id 字段冲突检测
+            ).execute()
             total_synced += len(batch)
             print(f"   进度: {total_synced}/{len(resort_data)}")
         
@@ -114,6 +145,18 @@ def sync_to_supabase(resort_data):
         # 验证数据
         count_response = supabase.table('resorts').select('*', count='exact').execute()
         print(f"✅ Supabase 中现有 {count_response.count} 个雪场")
+        
+        # 验证营业时间字段是否正确同步（检查第一个有营业时间的雪场）
+        print("\n🔍 验证营业时间字段...")
+        sample_resort = supabase.table('resorts').select(
+            'id, name, opening_hours_weekday, is_open_now'
+        ).limit(5).execute()
+        
+        if sample_resort.data:
+            print(f"📋 前5个雪场的营业时间状态：")
+            for r in sample_resort.data:
+                has_hours = r.get('opening_hours_weekday') is not None
+                print(f"   {r.get('name')}: {'✅ 有营业时间' if has_hours else '❌ 无营业时间'} (is_open_now: {r.get('is_open_now')})")
         
         return True
     
