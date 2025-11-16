@@ -118,12 +118,18 @@ def sync_to_supabase(resort_data):
         if resort_data:
             print(f"📋 数据字段示例（第一个雪场）：")
             first_resort = resort_data[0]
-            for key in ['id', 'name', 'opening_hours_weekday', 'is_open_now']:
+            for key in ['id', 'name', 'opening_hours_weekday', 'opening_hours_data', 'is_open_now']:
                 value = first_resort.get(key)
-                if isinstance(value, str) and len(value) > 50:
-                    print(f"   {key}: {value[:50]}...")
+                if value is None:
+                    print(f"   {key}: ❌ None")
+                elif isinstance(value, str) and len(value) > 50:
+                    print(f"   {key}: ✅ {value[:50]}...")
                 else:
-                    print(f"   {key}: {value}")
+                    print(f"   {key}: ✅ {value}")
+            
+            # 统计有营业时间的雪场
+            has_hours_count = sum(1 for r in resort_data if r.get('opening_hours_weekday'))
+            print(f"\n📊 统计: {has_hours_count}/{len(resort_data)} 个雪场有营业时间数据")
             print()
         
         # Supabase 的 upsert 有批量限制，我们分批处理
@@ -164,17 +170,19 @@ def sync_to_supabase(resort_data):
         count_response = supabase.table('resorts').select('*', count='exact').execute()
         print(f"✅ Supabase 中现有 {count_response.count} 个雪场")
         
-        # 验证营业时间字段是否正确同步（检查第一个有营业时间的雪场）
+        # 验证营业时间字段是否正确同步（检查 ID 1-5 的雪场）
         print("\n🔍 验证营业时间字段...")
         sample_resort = supabase.table('resorts').select(
             'id, name, opening_hours_weekday, is_open_now'
-        ).limit(5).execute()
+        ).in_('id', [1, 2, 3, 4, 5]).execute()
         
         if sample_resort.data:
-            print(f"📋 前5个雪场的营业时间状态：")
+            print(f"📋 ID 1-5 雪场的营业时间状态：")
             for r in sample_resort.data:
                 has_hours = r.get('opening_hours_weekday') is not None
-                print(f"   {r.get('name')}: {'✅ 有营业时间' if has_hours else '❌ 无营业时间'} (is_open_now: {r.get('is_open_now')})")
+                print(f"   ID {r.get('id')} - {r.get('name')}: {'✅ 有营业时间' if has_hours else '❌ 无营业时间'} (is_open_now: {r.get('is_open_now')})")
+        else:
+            print("⚠️  无法查询到 ID 1-5 的雪场")
         
         return True
     
