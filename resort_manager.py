@@ -90,7 +90,7 @@ class ResortDataManager:
     
     def collect_resort_data(self, resort_config: Dict, include_weather: bool = True) -> Optional[Dict]:
         """
-        采集单个雪场数据
+        采集单个雪场数据（支持多数据源）
         
         Args:
             resort_config: 雪场配置
@@ -99,20 +99,54 @@ class ResortDataManager:
         Returns:
             标准化后的数据或 None
         """
-        # 获取采集器
+        # 1. 采集主数据源
         collector = self.get_collector(resort_config)
-        
-        # 采集原始数据
         raw_data = collector.collect()
         
         if raw_data is None:
             return None
         
-        # 标准化数据
+        # 标准化主数据源数据
         data_source = resort_config.get('data_source')
         normalized_data = DataNormalizer.normalize(resort_config, raw_data, data_source)
         
-        # 同时采集天气数据
+        # 2. 采集 OnTheSnow 补充数据（如果配置了且不是主源）
+        onthesnow_url = resort_config.get('onthesnow_url')
+        onthesnow_enabled = resort_config.get('onthesnow_enabled', True)
+        
+        if onthesnow_url and onthesnow_enabled and data_source != 'onthesnow':
+            try:
+                # 创建临时配置用于 OnTheSnow 采集
+                onthesnow_config = {
+                    **resort_config,
+                    'source_url': onthesnow_url
+                }
+                
+                onthesnow_collector = OnTheSnowCollector(onthesnow_config)
+                onthesnow_raw_data = onthesnow_collector.collect()
+                
+                if onthesnow_raw_data:
+                    onthesnow_normalized = DataNormalizer.normalize(
+                        onthesnow_config,
+                        onthesnow_raw_data,
+                        'onthesnow'
+                    )
+                    
+                    # 合并 OnTheSnow 的 webcam 数据
+                    if onthesnow_normalized and 'webcams' in onthesnow_normalized:
+                        normalized_data['webcams'] = onthesnow_normalized['webcams']
+                        
+                    # 可选：如果主源数据缺失，用 OnTheSnow 数据补充
+                    # 例如：如果主源没有 trails_total，用 OnTheSnow 的
+                    if not normalized_data.get('trails_total') and onthesnow_normalized.get('trails_total'):
+                        normalized_data['trails_total'] = onthesnow_normalized['trails_total']
+                        normalized_data['trails_open'] = onthesnow_normalized.get('trails_open', 0)
+                    
+            except Exception as e:
+                # OnTheSnow 采集失败不影响主数据
+                print(f"[WARNING] OnTheSnow 补充数据采集失败: {e}")
+        
+        # 3. 同时采集天气数据
         if include_weather:
             weather_collector = OpenMeteoCollector(resort_config)
             weather_raw_data = weather_collector.collect()
@@ -174,14 +208,29 @@ class ResortDataManager:
                     if success:
                         with self.print_lock:
                             print(f"   ✅ {resort_name} - 成功（已存入数据库）")
+                        return (data, None)
                     else:
+                        # 数据库保存失败，视为采集失败
                         with self.print_lock:
-                            print(f"   ✅ {resort_name} - 成功（数据库保存失败，仅保存到文件）")
+                            print(f"   ❌ {resort_name} - 失败（数据库保存失败）")
+                        
+                        # 记录失败
+                        if failure_tracker:
+                            url = resort_config.get('source_url', 'N/A')
+                            failure_tracker.add_failure(
+                                resort_id=resort_id,
+                                resort_name=resort_name,
+                                error_type='DATABASE_SAVE_FAILED',
+                                error_message='数据采集成功但数据库保存失败',
+                                url=url
+                            )
+                        
+                        return (None, 'DATABASE_SAVE_FAILED')
                 else:
+                    # 无数据库连接，仅返回数据用于文件保存
                     with self.print_lock:
                         print(f"   ✅ {resort_name} - 成功")
-                
-                return (data, None)
+                    return (data, None)
             else:
                 with self.print_lock:
                     print(f"   ❌ {resort_name} - 失败（无数据）")

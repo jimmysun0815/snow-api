@@ -13,7 +13,9 @@
       "source_id": "60",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "使用 MtnPowder API"
+      "notes": "使用 MtnPowder API",
+      "onthesnow_url": "https://www.onthesnow.com/california/mammoth-mountain/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 2,
@@ -73,7 +75,9 @@
       "source_id": "1",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 佛蒙特州"
+      "notes": "MtnPowder - 佛蒙特州",
+      "onthesnow_url": "https://www.onthesnow.com/vermont/stratton/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 6,
@@ -103,7 +107,9 @@
       "source_id": "3",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 宾夕法尼亚州"
+      "notes": "MtnPowder - 宾夕法尼亚州",
+      "onthesnow_url": "https://www.onthesnow.com/pennsylvania/blue-mountain/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 8,
@@ -118,7 +124,9 @@
       "source_id": "4",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 魁北克"
+      "notes": "MtnPowder - 魁北克",
+      "onthesnow_url": "https://www.onthesnow.com/quebec/tremblant/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 9,
@@ -133,7 +141,9 @@
       "source_id": "5",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 科罗拉多州"
+      "notes": "MtnPowder - 科罗拉多州",
+      "onthesnow_url": "https://www.onthesnow.com/colorado/winter-park/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 10,
@@ -148,7 +158,9 @@
       "source_id": "70",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 佛蒙特州"
+      "notes": "MtnPowder - 佛蒙特州",
+      "onthesnow_url": "https://www.onthesnow.com/vermont/sugarbush/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 11,
@@ -163,7 +175,9 @@
       "source_id": "80",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 华盛顿州"
+      "notes": "MtnPowder - 华盛顿州",
+      "onthesnow_url": "https://www.onthesnow.com/washington/crystal-mountain-mtnpowder/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 20,
@@ -538,7 +552,9 @@
       "source_id": "57",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 南加州 Big Bear 区域"
+      "notes": "MtnPowder - 南加州 Big Bear 区域",
+      "onthesnow_url": "https://www.onthesnow.com/california/bear-mountain-ca/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 101,
@@ -553,7 +569,9 @@
       "source_id": "58",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 南加州 Big Bear 区域"
+      "notes": "MtnPowder - 南加州 Big Bear 区域",
+      "onthesnow_url": "https://www.onthesnow.com/california/snow-summit/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 102,
@@ -568,7 +586,9 @@
       "source_id": "59",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - Mammoth 附近"
+      "notes": "MtnPowder - Mammoth 附近",
+      "onthesnow_url": "https://www.onthesnow.com/california/june-mountain/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 103,
@@ -583,7 +603,9 @@
       "source_id": "65",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 犹他州 Big Cottonwood Canyon"
+      "notes": "MtnPowder - 犹他州 Big Cottonwood Canyon",
+      "onthesnow_url": "https://www.onthesnow.com/utah/solitude-utah/skireport",
+      "onthesnow_enabled": true
     },
     {
       "id": 200,

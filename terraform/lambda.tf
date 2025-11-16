@@ -79,6 +79,17 @@ resource "aws_cloudwatch_log_group" "collector_lambda" {
   }
 }
 
+# CloudWatch 日志组 (Contact Info Collector Lambda)
+resource "aws_cloudwatch_log_group" "contact_collector_lambda" {
+  name              = "/aws/lambda/${var.project_name}-contact-collector"
+  retention_in_days = 7
+
+  tags = {
+    Name        = "${var.project_name}-contact-collector-logs"
+    Environment = var.environment
+  }
+}
+
 # Lambda 函数 - API
 resource "aws_lambda_function" "api" {
   function_name = "${var.project_name}-api"
@@ -169,6 +180,53 @@ resource "aws_lambda_function" "collector" {
 
   depends_on = [
     aws_cloudwatch_log_group.collector_lambda,
+    aws_db_instance.postgresql,
+    aws_elasticache_cluster.redis
+  ]
+}
+
+# Lambda 函数 - 联系信息采集
+resource "aws_lambda_function" "contact_collector" {
+  function_name = "${var.project_name}-contact-collector"
+  role          = aws_iam_role.lambda_exec.arn
+
+  # 部署包 (使用占位符，实际代码由 GitHub Actions 部署)
+  filename      = "${path.module}/placeholder.zip"
+  source_code_hash = filebase64sha256("${path.module}/placeholder.zip")
+
+  handler = "contact_collector_handler.lambda_handler"
+  runtime = var.lambda_runtime
+  timeout = 900  # 15分钟 (联系信息采集需要较长时间)
+  memory_size = 1024
+
+  # VPC 配置
+  vpc_config {
+    subnet_ids         = aws_subnet.private[*].id
+    security_group_ids = [aws_security_group.lambda.id]
+  }
+
+  # 环境变量
+  environment {
+    variables = {
+      POSTGRES_HOST     = aws_db_instance.postgresql.address
+      POSTGRES_PORT     = "5432"
+      POSTGRES_USER     = var.db_username
+      POSTGRES_PASSWORD = var.db_password
+      POSTGRES_DB       = var.db_name
+      REDIS_HOST        = aws_elasticache_cluster.redis.cache_nodes[0].address
+      REDIS_PORT        = "6379"
+      REDIS_DB          = "0"
+      ENVIRONMENT       = var.environment
+    }
+  }
+
+  tags = {
+    Name        = "${var.project_name}-contact-collector"
+    Environment = var.environment
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.contact_collector_lambda,
     aws_db_instance.postgresql,
     aws_elasticache_cluster.redis
   ]

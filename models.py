@@ -43,6 +43,7 @@ class Resort(Base):
     conditions = relationship("ResortCondition", back_populates="resort", cascade="all, delete-orphan")
     weather = relationship("ResortWeather", back_populates="resort", cascade="all, delete-orphan")
     trails = relationship("ResortTrail", back_populates="resort", cascade="all, delete-orphan")
+    webcams = relationship("ResortWebcam", back_populates="resort", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Resort(id={self.id}, name='{self.name}', slug='{self.slug}')>"
@@ -170,6 +171,41 @@ class ResortTrail(Base):
     
     def __repr__(self):
         return f"<ResortTrail(resort_id={self.resort_id}, name='{self.name}', difficulty='{self.difficulty}')>"
+
+
+class ResortWebcam(Base):
+    """雪场摄像头数据表（时序数据）"""
+    __tablename__ = 'resort_webcams'
+    
+    id = Column(Integer, primary_key=True)
+    resort_id = Column(Integer, ForeignKey('resorts.id'), nullable=False, index=True)
+    timestamp = Column(DateTime, default=datetime.now, nullable=False, index=True)
+    
+    # 摄像头标识
+    webcam_uuid = Column(String(100), index=True)  # OnTheSnow 的 UUID
+    title = Column(String(300))  # 摄像头名称
+    
+    # 图片链接
+    image_url = Column(Text)  # 高清图片
+    thumbnail_url = Column(Text)  # 缩略图
+    
+    # 视频流
+    video_stream_url = Column(Text)  # 视频流链接（如 YouTube embed）
+    webcam_type = Column(Integer)  # 类型：0=静态图, 3=视频流
+    
+    # 状态
+    is_featured = Column(Boolean, default=False)  # 是否为特色摄像头
+    last_updated = Column(DateTime)  # 摄像头最后更新时间
+    
+    # 元数据
+    source = Column(String(100))  # 数据来源
+    created_at = Column(DateTime, default=datetime.now)
+    
+    # 关联关系
+    resort = relationship("Resort", back_populates="webcams")
+    
+    def __repr__(self):
+        return f"<ResortWebcam(resort_id={self.resort_id}, title='{self.title}', video={bool(self.video_stream_url)})>"
 
 
 # 数据库初始化函数

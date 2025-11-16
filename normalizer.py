@@ -168,13 +168,40 @@ class DataNormalizer:
             # 额外信息
             'opening_date': status_info.get('openingDate'),
             'closing_date': status_info.get('closingDate'),
-            # 联系信息
-            'address': full_resort.get('physicalAddress'),
-            'city': full_resort.get('physicalCity'),
-            'zip_code': full_resort.get('zip'),
-            'phone': full_resort.get('phone'),
-            'website': full_resort.get('website'),
+            # Webcam 数据
+            'webcams': DataNormalizer._extract_webcams(full_resort),
         }
+    
+    @staticmethod
+    def _extract_webcams(full_resort: Dict) -> list:
+        """
+        从 OnTheSnow 数据中提取 webcam 信息
+        
+        Args:
+            full_resort: OnTheSnow 的 fullResort 对象
+            
+        Returns:
+            webcam 数据列表
+        """
+        webcams = full_resort.get('webcams', [])
+        if not webcams:
+            return []
+        
+        result = []
+        for cam in webcams:
+            webcam_data = {
+                'webcam_uuid': cam.get('uuid'),
+                'title': cam.get('title'),
+                'image_url': cam.get('image'),
+                'thumbnail_url': cam.get('thumbnail'),
+                'video_stream_url': cam.get('videoStream'),
+                'webcam_type': cam.get('webcamType', 0),
+                'is_featured': cam.get('isFeatured', False),
+                'last_updated': cam.get('date'),  # ISO 格式的时间字符串
+            }
+            result.append(webcam_data)
+        
+        return result
     
     @staticmethod
     def _normalize_openmeteo(resort_config: Dict, raw_data: Dict) -> Dict:

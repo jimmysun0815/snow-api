@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 import threading
 
 from config import Config
-from models import Base, Resort, ResortCondition, ResortWeather, ResortTrail
+from models import Base, Resort, ResortCondition, ResortWeather, ResortTrail, ResortWebcam
 
 
 def calculate_status_by_opening_date(opening_date_str: str, original_status: str) -> str:
@@ -117,19 +117,8 @@ class DatabaseManager:
                 )
                 session.add(resort)
             else:
-                # 更新雪场基本信息（包括联系信息）
+                # 更新雪场基本信息（但不更新联系信息，联系信息由 collect_trails 更新）
                 resort.updated_at = datetime.now()
-                # 更新联系信息（如果 normalized_data 中有）
-                if 'address' in normalized_data:
-                    resort.address = normalized_data.get('address')
-                if 'city' in normalized_data:
-                    resort.city = normalized_data.get('city')
-                if 'zip_code' in normalized_data:
-                    resort.zip_code = normalized_data.get('zip_code')
-                if 'phone' in normalized_data:
-                    resort.phone = normalized_data.get('phone')
-                if 'website' in normalized_data:
-                    resort.website = normalized_data.get('website')
             
             # 2. 保存雪况数据
             condition = ResortCondition(
@@ -185,10 +174,15 @@ class DatabaseManager:
                 )
                 session.add(weather)
             
-            # 4. 提交事务
+            # 4. 保存 webcam 数据
+            webcams = normalized_data.get('webcams', [])
+            if webcams:
+                self._save_webcams(session, resort_config['id'], webcams, normalized_data.get('source'))
+            
+            # 5. 提交事务
             session.commit()
             
-            # 5. 清除相关缓存
+            # 6. 清除相关缓存
             self._invalidate_cache(resort_config['id'], resort_config['slug'])
             
             return True
@@ -382,6 +376,15 @@ class DatabaseManager:
                     'lon': resort.lon,
                     'elevation_min': resort.elevation_min,
                     'elevation_max': resort.elevation_max,
+                    # 联系信息（管理后台需要）
+                    'address': resort.address,
+                    'city': resort.city,
+                    'zip_code': resort.zip_code,
+                    'phone': resort.phone,
+                    'website': resort.website,
+                    'data_source': resort.data_source,
+                    'source_url': resort.source_url,
+                    'enabled': resort.enabled,
                 }
                 
                 # 添加雪况信息
@@ -532,6 +535,81 @@ class DatabaseManager:
             print(f"[DEBUG] 详细错误:\n{error_detail}")
             return False
     
+    def save_contact_info(self, resort_id: int, contact_info: Dict) -> bool:
+        """
+        保存或更新雪场的联系信息
+        
+        Args:
+            resort_id: 雪场 ID
+            contact_info: 联系信息字典（从 GooglePlacesCollector 返回）
+            
+        Returns:
+            是否成功
+        """
+        session = self.Session()  # 获取线程安全的 session
+        try:
+            # 查找雪场
+            resort = session.query(Resort).filter_by(id=resort_id).first()
+            
+            if not resort:
+                print(f"[WARNING] 未找到 ID 为 {resort_id} 的雪场")
+                return False
+            
+            # 更新联系信息
+            updated_fields = []
+            
+            if contact_info.get('street_address'):
+                resort.address = contact_info.get('street_address')
+                updated_fields.append('地址')
+            elif contact_info.get('formatted_address'):
+                resort.address = contact_info.get('formatted_address')
+                updated_fields.append('地址')
+            
+            if contact_info.get('city'):
+                resort.city = contact_info.get('city')
+                updated_fields.append('城市')
+            
+            if contact_info.get('postal_code'):
+                resort.zip_code = contact_info.get('postal_code')
+                updated_fields.append('邮编')
+            
+            if contact_info.get('phone'):
+                resort.phone = contact_info.get('phone')
+                updated_fields.append('电话')
+            
+            if contact_info.get('website'):
+                resort.website = contact_info.get('website')
+                updated_fields.append('网站')
+            
+            # 可选：更新经纬度（Google Maps 的可能更准确）
+            geometry = contact_info.get('geometry')
+            if geometry and geometry.get('lat') and geometry.get('lng'):
+                resort.lat = geometry.get('lat')
+                resort.lon = geometry.get('lng')
+                updated_fields.append('坐标')
+            
+            resort.updated_at = datetime.now()
+            
+            # 提交事务
+            session.commit()
+            
+            if updated_fields:
+                print(f"[OK] 更新了: {', '.join(updated_fields)}")
+            else:
+                print(f"[INFO] 没有新的联系信息需要更新")
+            
+            return True
+            
+        except Exception as e:
+            session.rollback()
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"[ERROR] 保存联系信息失败: {e}")
+            print(f"[DEBUG] 详细错误:\n{error_detail}")
+            return False
+        finally:
+            session.close()  # 确保关闭 session
+    
     def get_resort_trails(self, resort_id: int = None, resort_slug: str = None) -> List[Dict]:
         """
         获取雪场的雪道数据
@@ -605,6 +683,44 @@ class DatabaseManager:
         self.redis_client.delete(f"resort:{resort_id}")
         self.redis_client.delete(f"resort:{resort_slug}")
         self.redis_client.delete("resorts:all")
+    
+    def _save_webcams(self, session, resort_id: int, webcams: list, source: str):
+        """
+        保存 webcam 数据到数据库
+        
+        Args:
+            session: 数据库 session
+            resort_id: 雪场 ID
+            webcams: webcam 数据列表
+            source: 数据来源
+        """
+        from dateutil import parser as date_parser
+        
+        timestamp = datetime.now()
+        
+        for cam in webcams:
+            # 解析 last_updated 时间
+            last_updated = None
+            if cam.get('last_updated'):
+                try:
+                    last_updated = date_parser.parse(cam['last_updated'])
+                except:
+                    pass
+            
+            webcam = ResortWebcam(
+                resort_id=resort_id,
+                timestamp=timestamp,
+                webcam_uuid=cam.get('webcam_uuid'),
+                title=cam.get('title'),
+                image_url=cam.get('image_url'),
+                thumbnail_url=cam.get('thumbnail_url'),
+                video_stream_url=cam.get('video_stream_url'),
+                webcam_type=cam.get('webcam_type', 0),
+                is_featured=cam.get('is_featured', False),
+                last_updated=last_updated,
+                source=source
+            )
+            session.add(webcam)
     
     def _invalidate_trails_cache(self, resort_id: int, resort_slug: str):
         """清除雪道缓存"""
