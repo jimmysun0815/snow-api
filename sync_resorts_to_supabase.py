@@ -133,9 +133,11 @@ def sync_to_supabase(resort_data):
         for i in range(0, len(resort_data), batch_size):
             batch = resort_data[i:i + batch_size]
             # onConflict='id' 确保按 id 字段进行 upsert
+            # ignoreDuplicates=False 确保更新所有字段（包括新添加的营业时间字段）
             response = supabase.table('resorts').upsert(
                 batch,
-                on_conflict='id'  # 明确指定按 id 字段冲突检测
+                on_conflict='id',  # 明确指定按 id 字段冲突检测
+                ignore_duplicates=False  # 强制更新所有字段，不忽略重复项
             ).execute()
             total_synced += len(batch)
             print(f"   进度: {total_synced}/{len(resort_data)}")
