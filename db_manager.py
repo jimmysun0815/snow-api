@@ -418,15 +418,19 @@ class DatabaseManager:
                     'lon': resort.lon,
                     'elevation_min': resort.elevation_min,
                     'elevation_max': resort.elevation_max,
-                    # 联系信息（管理后台需要）
+                    # 联系信息和营业时间（静态数据）
                     'address': resort.address,
                     'city': resort.city,
                     'zip_code': resort.zip_code,
                     'phone': resort.phone,
                     'website': resort.website,
+                    'opening_hours_weekday': resort.opening_hours_weekday,
+                    'opening_hours_data': resort.opening_hours_data,
+                    'is_open_now': resort.is_open_now,
                     'data_source': resort.data_source,
                     'source_url': resort.source_url,
                     'enabled': resort.enabled,
+                    'updated_at': resort.updated_at.isoformat() if resort.updated_at else None,
                 }
                 
                 # 添加雪况信息
