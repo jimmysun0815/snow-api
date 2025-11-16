@@ -59,6 +59,9 @@ jobs:
         run: |
           echo "📦 构建 Collector Lambda 部署包..."
           
+          # 确保使用最新的 monitor.py 和 monitor_html.py
+          cp monitor.py monitor_html.py s3_uploader.py package/
+          
           # 确保 collectors 目录在 package 中
           ls -la package/ | grep collectors || echo "Warning: collectors not found"
           
