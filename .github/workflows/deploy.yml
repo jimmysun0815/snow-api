@@ -260,22 +260,34 @@ jobs:
                   report_data = {
                       'timestamp': stats['start_time'].isoformat(),
                       'duration_seconds': duration_seconds,
-                      'summary': {},
+                      'summary': {
+                          'total_resorts': 0,
+                          'success': 0,
+                          'warning': 0,
+                          'error': 0,
+                          'collection_total': stats.get('total_resorts', 0),
+                          'collection_success': stats.get('success_count', 0),
+                          'collection_failed': stats.get('fail_count', 0)
+                      },
                       'resorts': [],
                       'collection_failures': stats.get('failed_resorts', [])
                   }
                   
-                  # 填充 summary 和 resorts
+                  # 填充 summary 和 resorts（如果有监控数据）
                   if monitor_data:
                       if 'summary' in monitor_data:
-                          report_data['summary'] = monitor_data['summary'].copy()
+                          # 合并监控数据的 summary
+                          report_data['summary']['total_resorts'] = monitor_data['summary'].get('total_resorts', 0)
+                          report_data['summary']['success'] = monitor_data['summary'].get('success', 0)
+                          report_data['summary']['warning'] = monitor_data['summary'].get('warning', 0)
+                          report_data['summary']['error'] = monitor_data['summary'].get('error', 0)
                       if 'resorts' in monitor_data:
                           report_data['resorts'] = monitor_data['resorts']
                   
-                  # 添加采集统计到 summary
-                  report_data['summary']['collection_total'] = stats.get('total_resorts', 0)
-                  report_data['summary']['collection_success'] = stats.get('success_count', 0)
-                  report_data['summary']['collection_failed'] = stats.get('fail_count', 0)
+                  # 如果没有监控数据（数据库为空），用采集失败信息填充
+                  if not report_data['resorts'] and stats.get('failed_resorts'):
+                      print("⚠️ 数据库中无数据，使用采集失败信息生成报告")
+                      # 注意：collection_failures 已经在上面添加了
                   
                   print(f"📊 报告数据: {len(report_data.get('resorts', []))} 个雪场, {len(report_data.get('collection_failures', []))} 个失败, 运行时长: {int(duration_seconds)}秒")
                   
