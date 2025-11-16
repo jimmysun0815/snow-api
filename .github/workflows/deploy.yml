@@ -236,8 +236,7 @@ jobs:
                                   'success': sum(1 for r in reports if r.overall_status == 'success'),
                                   'warning': sum(1 for r in reports if r.overall_status == 'warning'),
                                   'error': sum(1 for r in reports if r.overall_status == 'error')
-                              },
-                              'field_stats': monitor.calculate_field_stats(reports)
+                              }
                           },
                           'resorts': reports_dict
                       }
