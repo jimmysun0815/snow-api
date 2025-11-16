@@ -189,17 +189,29 @@ jobs:
           def run_data_quality_check(manager):
               """执行数据质量监控"""
               try:
-                  # 保存最新数据到临时文件
+                  # 从数据库获取所有雪场的最新数据
+                  print("📊 从数据库读取最新雪场数据...")
+                  all_resorts_data = manager.db_manager.get_all_resorts_data()
+                  
+                  # 检查是否有数据
+                  if not all_resorts_data or len(all_resorts_data) == 0:
+                      print("⚠️ 数据库中没有雪场数据，无法生成监控报告")
+                      return None
+                  
+                  print(f"✅ 从数据库读取到 {len(all_resorts_data)} 个雪场数据")
+                  
+                  # 构造符合 monitor.monitor_all() 期望的格式
+                  latest_data = {
+                      'metadata': {
+                          'timestamp': datetime.now().isoformat(),
+                          'total_resorts': len(all_resorts_data)
+                      },
+                      'resorts': all_resorts_data
+                  }
+                  
+                  # 保存到临时文件
                   import tempfile
-                  with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                      latest_data = manager.db_manager.get_latest_resort_data()
-                      
-                      # 检查是否有数据
-                      if not latest_data or not latest_data.get('resorts'):
-                          print("⚠️ 数据库中没有雪场数据，无法生成监控报告")
-                          os.unlink(f.name)
-                          return None
-                      
+                  with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
                       json.dump(latest_data, f, ensure_ascii=False, indent=2)
                       temp_file = f.name
                   
