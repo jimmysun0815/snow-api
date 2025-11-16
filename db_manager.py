@@ -321,6 +321,27 @@ class DatabaseManager:
                     'last_update': latest_weather.timestamp.isoformat()
                 }
             
+            # 查询最新的 webcam 数据
+            latest_webcams = self.session.query(ResortWebcam).filter_by(
+                resort_id=resort.id
+            ).order_by(desc(ResortWebcam.timestamp)).limit(20).all()
+            
+            if latest_webcams:
+                data['webcams'] = [
+                    {
+                        'webcam_uuid': webcam.webcam_uuid,
+                        'title': webcam.title,
+                        'image_url': webcam.image_url,
+                        'thumbnail_url': webcam.thumbnail_url,
+                        'video_stream_url': webcam.video_stream_url,
+                        'webcam_type': webcam.webcam_type,
+                        'is_featured': webcam.is_featured,
+                        'last_updated': webcam.last_updated.isoformat() if webcam.last_updated else None,
+                        'source': webcam.source
+                    }
+                    for webcam in latest_webcams
+                ]
+            
             # 3. 存入 Redis 缓存
             self.redis_client.setex(
                 cache_key,
