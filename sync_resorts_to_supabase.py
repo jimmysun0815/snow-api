@@ -130,17 +130,33 @@ def sync_to_supabase(resort_data):
         batch_size = 100
         total_synced = 0
         
+        print("📝 同步策略：强制更新所有字段（无论记录是否存在）")
+        print()
+        
         for i in range(0, len(resort_data), batch_size):
             batch = resort_data[i:i + batch_size]
-            # onConflict='id' 确保按 id 字段进行 upsert
-            # ignoreDuplicates=False 确保更新所有字段（包括新添加的营业时间字段）
-            response = supabase.table('resorts').upsert(
-                batch,
-                on_conflict='id',  # 明确指定按 id 字段冲突检测
-                ignore_duplicates=False  # 强制更新所有字段，不忽略重复项
-            ).execute()
-            total_synced += len(batch)
-            print(f"   进度: {total_synced}/{len(resort_data)}")
+            
+            # 方式 1: 尝试先删除再插入（确保完全更新）
+            # 这样可以避免 upsert 的任何歧义
+            try:
+                # 收集这批的 ID
+                batch_ids = [item['id'] for item in batch]
+                
+                # 删除这些 ID 的记录（如果存在）
+                supabase.table('resorts').delete().in_('id', batch_ids).execute()
+                
+                # 插入新数据
+                response = supabase.table('resorts').insert(batch).execute()
+                
+                total_synced += len(batch)
+                print(f"   进度: {total_synced}/{len(resort_data)}")
+            except Exception as batch_error:
+                print(f"   ⚠️  批次 {i}-{i+len(batch)} 同步失败: {batch_error}")
+                # 如果删除+插入失败，回退到 upsert
+                print(f"   🔄 回退到 upsert 模式...")
+                response = supabase.table('resorts').upsert(batch).execute()
+                total_synced += len(batch)
+                print(f"   进度: {total_synced}/{len(resort_data)}")
         
         print(f"✅ 同步完成！共同步 {total_synced} 个雪场")
         
