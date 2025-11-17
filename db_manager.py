@@ -604,11 +604,27 @@ class DatabaseManager:
             # 更新联系信息
             updated_fields = []
             
+            # 只使用 street_address，不要fallback到formatted_address
+            # formatted_address包含完整地址，会导致格式混乱
             if contact_info.get('street_address'):
-                resort.address = contact_info.get('street_address')
-                updated_fields.append('地址')
-            elif contact_info.get('formatted_address'):
-                resort.address = contact_info.get('formatted_address')
+                street_addr = contact_info.get('street_address')
+                
+                # 过滤地址：如果格式是 "City, State Zip, Country"，只保留第一部分
+                # 例如："Vail, CO 81657, USA" -> "Vail"
+                # 例如："Warren, VT 05674, USA" -> "Warren"
+                if ',' in street_addr:
+                    # 检查是否是城市级别的地址（包含州、邮编等）
+                    parts = [p.strip() for p in street_addr.split(',')]
+                    # 如果有多个部分，且第二部分看起来像州代码（2个字母）或包含数字
+                    if len(parts) >= 2:
+                        second_part = parts[1]
+                        # 如果第二部分是州代码格式（如 "CO 81657" 或 "VT 05674"）
+                        if any(char.isdigit() for char in second_part) or len(second_part.split()[0]) == 2:
+                            # 只保留第一部分（城市名）
+                            street_addr = parts[0]
+                            print(f"[INFO] 地址过滤: '{contact_info.get('street_address')}' -> '{street_addr}'")
+                
+                resort.address = street_addr
                 updated_fields.append('地址')
             
             if contact_info.get('city'):

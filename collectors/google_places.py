@@ -150,19 +150,20 @@ class GooglePlacesCollector(BaseCollector):
                 
                 # 解析地址组件
                 address_components = result.get('address_components', [])
-                street_address = None
+                street_number = None
+                route = None
                 city = None
                 state = None
                 postal_code = None
                 country = None
                 
+                # 第一遍遍历，收集所有组件
                 for component in address_components:
                     types = component.get('types', [])
-                    if 'street_number' in types or 'route' in types:
-                        if not street_address:
-                            street_address = component.get('long_name', '')
-                        else:
-                            street_address = f"{street_address} {component.get('long_name', '')}"
+                    if 'street_number' in types:
+                        street_number = component.get('long_name', '')
+                    elif 'route' in types:
+                        route = component.get('long_name', '')
                     elif 'locality' in types:
                         city = component.get('long_name')
                     elif 'administrative_area_level_1' in types:
@@ -171,6 +172,30 @@ class GooglePlacesCollector(BaseCollector):
                         postal_code = component.get('long_name')
                     elif 'country' in types:
                         country = component.get('long_name')
+                
+                # 组合街道地址：优先使用 street_number + route
+                # 如果没有street_number，只使用route
+                # 如果两者都没有，使用formatted_address但只保留第一部分
+                street_address = None
+                if street_number and route:
+                    street_address = f"{street_number} {route}"
+                elif route:
+                    street_address = route
+                elif street_number:
+                    street_address = street_number
+                else:
+                    # 如果没有街道信息，使用formatted_address但只保留第一部分
+                    # 例如："Vail, CO 81657, USA" -> "Vail"
+                    formatted = result.get('formatted_address', '')
+                    if formatted and ',' in formatted:
+                        street_address = formatted.split(',')[0].strip()
+                        self.log('INFO', f'使用城市名作为地址: {street_address}')
+                    elif formatted:
+                        street_address = formatted
+                
+                # 调试日志：显示解析结果
+                self.log('INFO', f'地址解析结果: street_number={street_number}, route={route}, street_address={street_address}')
+                self.log('INFO', f'城市/邮编: city={city}, postal_code={postal_code}')
                 
                 # 构建返回数据
                 contact_info = {
