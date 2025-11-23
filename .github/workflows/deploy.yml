@@ -107,13 +107,36 @@ jobs:
           
           echo "✅ API Lambda 部署成功"
 
+      - name: Upload Collector Lambda to S3
+        run: |
+          echo "☁️ 上传 Collector Lambda 到 S3..."
+          
+          # 从 Terraform 输出获取 S3 bucket 名称
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
+          
+          echo "📦 使用 S3 Bucket: $BUCKET"
+          
+          # 上传到 S3
+          aws s3 cp collector-lambda.zip "s3://${BUCKET}/collector-lambda.zip" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ 上传到 S3 成功"
+
       - name: Deploy Collector Lambda
         run: |
-          echo "🚀 部署 Collector Lambda 函数..."
+          echo "🚀 部署 Collector Lambda 函数（从 S3）..."
+          
+          # 从 Terraform 输出获取 S3 bucket 名称
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
           
           aws lambda update-function-code \
             --function-name resort-data-collector \
-            --zip-file fileb://collector-lambda.zip \
+            --s3-bucket "$BUCKET" \
+            --s3-key "collector-lambda.zip" \
             --region ${{ env.AWS_REGION }}
           
           echo "✅ Collector Lambda 部署成功"
@@ -184,13 +207,31 @@ jobs:
           echo "📋 验证部署包内容..."
           unzip -l contact-collector-lambda.zip | grep -E "(contact_collector_handler|collectors|db_manager)" || echo "Warning: missing files"
 
+      - name: Upload Contact Collector Lambda to S3
+        run: |
+          echo "☁️ 上传 Contact Collector Lambda 到 S3..."
+          
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
+          
+          aws s3 cp contact-collector-lambda.zip "s3://${BUCKET}/contact-collector-lambda.zip" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ 上传到 S3 成功"
+
       - name: Deploy Contact Collector Lambda
         run: |
-          echo "🚀 部署 Contact Collector Lambda 函数..."
+          echo "🚀 部署 Contact Collector Lambda 函数（从 S3）..."
+          
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
           
           aws lambda update-function-code \
             --function-name resort-data-contact-collector \
-            --zip-file fileb://contact-collector-lambda.zip \
+            --s3-bucket "$BUCKET" \
+            --s3-key "contact-collector-lambda.zip" \
             --region ${{ env.AWS_REGION }}
           
           echo "✅ Contact Collector Lambda 部署成功"
@@ -297,37 +338,91 @@ jobs:
           echo "✅ SQS Notification Processor Lambda 包构建完成"
           ls -lh sqs-notification-processor.zip
 
+      - name: Upload Notification Handler Lambda to S3
+        run: |
+          echo "☁️ 上传 Notification Handler Lambda 到 S3..."
+          
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
+          
+          aws s3 cp notification-handler.zip "s3://${BUCKET}/notification-handler.zip" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ 上传到 S3 成功"
+
       - name: Deploy Notification Handler Lambda
         run: |
-          echo "🚀 部署 Notification Handler Lambda 函数..."
+          echo "🚀 部署 Notification Handler Lambda 函数（从 S3）..."
+          
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
           
           aws lambda update-function-code \
             --function-name resort-data-notification-handler \
-            --zip-file fileb://notification-handler.zip \
+            --s3-bucket "$BUCKET" \
+            --s3-key "notification-handler.zip" \
             --region ${{ env.AWS_REGION }}
           
           echo "✅ Notification Handler Lambda 部署成功"
 
+      - name: Upload Snow Checker Lambda to S3
+        run: |
+          echo "☁️ 上传 Snow Checker Lambda 到 S3..."
+          
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
+          
+          aws s3 cp snow-checker.zip "s3://${BUCKET}/snow-checker.zip" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ 上传到 S3 成功"
+
       - name: Deploy Snow Checker Lambda
         run: |
-          echo "🚀 部署 Snow Checker Lambda 函数..."
+          echo "🚀 部署 Snow Checker Lambda 函数（从 S3）..."
+          
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
           
           aws lambda update-function-code \
             --function-name resort-data-snow-checker \
-            --zip-file fileb://snow-checker.zip \
+            --s3-bucket "$BUCKET" \
+            --s3-key "snow-checker.zip" \
             --region ${{ env.AWS_REGION }}
           
           echo "✅ Snow Checker Lambda 部署成功"
           echo "⏳ 等待 Lambda 更新完成..."
           sleep 10
 
+      - name: Upload SQS Notification Processor Lambda to S3
+        run: |
+          echo "☁️ 上传 SQS Notification Processor Lambda 到 S3..."
+          
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
+          
+          aws s3 cp sqs-notification-processor.zip "s3://${BUCKET}/sqs-notification-processor.zip" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ 上传到 S3 成功"
+
       - name: Deploy SQS Notification Processor Lambda
         run: |
-          echo "🚀 部署 SQS Notification Processor Lambda 函数..."
+          echo "🚀 部署 SQS Notification Processor Lambda 函数（从 S3）..."
+          
+          cd terraform
+          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
+          cd ..
           
           aws lambda update-function-code \
             --function-name resort-data-sqs-notification-processor \
-            --zip-file fileb://sqs-notification-processor.zip \
+            --s3-bucket "$BUCKET" \
+            --s3-key "sqs-notification-processor.zip" \
             --region ${{ env.AWS_REGION }}
           
           echo "✅ SQS Notification Processor Lambda 部署成功"
