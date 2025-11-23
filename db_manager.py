@@ -807,7 +807,7 @@ class DatabaseManager:
         self.redis_client.delete(f"trails:{resort_id}")
         self.redis_client.delete(f"trails:{resort_slug}")
     
-    def delete_resort(self, resort_id: int):
+    def delete_resort(self, resort_id: int) -> dict:
         """
         删除雪场及其所有关联数据
         
@@ -815,6 +815,16 @@ class DatabaseManager:
         
         Args:
             resort_id: 雪场 ID
+        
+        Returns:
+            {
+                'resort_id': int,
+                'resort_name': str,
+                'resort_slug': str
+            }
+        
+        Raises:
+            ValueError: 雪场不存在
         """
         session = self.Session()  # 获取当前线程的 session
         
@@ -860,6 +870,17 @@ class DatabaseManager:
             self._invalidate_trails_cache(resort_id, resort_slug)
             print(f"✅ 缓存已清除")
             
+            # 返回删除的雪场信息
+            return {
+                'resort_id': resort_id,
+                'resort_name': resort_name,
+                'resort_slug': resort_slug
+            }
+            
+        except ValueError:
+            # 雪场不存在，直接抛出
+            session.close()
+            raise
         except Exception as e:
             session.rollback()
             print(f"❌ 删除雪场失败: {e}")

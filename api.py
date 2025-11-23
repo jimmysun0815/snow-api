@@ -453,29 +453,29 @@ def admin_delete_resort(resort_id):
         }), 500
     
     try:
-        # 检查雪场是否存在
-        resort = db_manager.get_resort_by_id(resort_id)
-        if not resort:
-            return jsonify({
-                'success': False,
-                'error': f'雪场 ID {resort_id} 不存在'
-            }), 404
+        # 直接调用删除（内部会检查雪场是否存在）
+        result = db_manager.delete_resort(resort_id)
         
-        resort_name = resort.get('name', f'ID-{resort_id}')
+        print(f"✅ [Admin API] 删除雪场: ID={result['resort_id']}, Name={result['resort_name']}")
         
-        # 删除雪场（包括关联数据）
-        db_manager.delete_resort(resort_id)
-        
-        print(f"✅ [Admin API] 删除雪场: ID={resort_id}, Name={resort_name}")
-        
+        # 删除成功
         return jsonify({
             'success': True,
-            'message': f'成功删除雪场: {resort_name}',
-            'resort_id': resort_id,
-            'resort_name': resort_name
+            'message': f'成功删除雪场: {result["resort_name"]}',
+            'resort_id': result['resort_id'],
+            'resort_name': result['resort_name']
         }), 200
     
+    except ValueError as e:
+        # 雪场不存在
+        print(f"⚠️  [Admin API] 雪场不存在: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 404
+    
     except Exception as e:
+        # 其他错误
         print(f"❌ [Admin API] 删除雪场失败: {e}")
         import traceback
         traceback.print_exc()
