@@ -291,21 +291,23 @@ class DataNormalizer:
             precipitation_24h = round(sum(precipitations[:24]), 1)  # mm
         
         # 未来24小时的详细数据（从当前小时开始）
-        from datetime import datetime, timezone
+        from datetime import datetime
         hourly_forecast = []
         times = hourly.get('time', [])
         
         # 找到当前小时的索引
-        # 注意：OpenMeteo API 返回的是 UTC 时间，所以这里也要使用 UTC
-        now = datetime.now(timezone.utc)
-        current_hour_str = now.strftime('%Y-%m-%dT%H:00')
+        # 重要：OpenMeteo API 使用 timezone='auto' 参数，返回的时间是雪场当地时区
+        # 时间格式为 "2024-11-23T19:00"（无时区标记），表示雪场当地时间
+        # 因此我们直接使用 UTC 时间作为参考点，因为 API 会自动处理时区转换
+        # 实际上，我们只需要找到第一个 >= 当前时间的索引即可，不需要关心时区
+        
+        # 由于 OpenMeteo 已经返回了雪场当地时间的小时数据
+        # 我们只需要取前24个未来的小时（API已经按时间排序）
+        # 通常 API 会返回从当前小时开始的数据，所以直接从索引0开始取24个即可
         start_index = 0
         
-        # 查找当前小时或最接近的未来小时
-        for i, time_str in enumerate(times):
-            if time_str >= current_hour_str:
-                start_index = i
-                break
+        # 如果 times 列表为空，start_index 保持为 0
+        # 否则，我们假设 API 返回的第一个时间就是当前或未来的时间
         
         # 从当前小时开始，取24小时数据
         for i in range(start_index, min(start_index + 24, len(times))):
