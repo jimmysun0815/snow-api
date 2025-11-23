@@ -291,26 +291,51 @@ class DataNormalizer:
             precipitation_24h = round(sum(precipitations[:24]), 1)  # mm
         
         # 未来24小时的详细数据（从当前小时开始）
-        from datetime import datetime
+        from datetime import datetime, timezone
+        import pytz
+        from timezonefinder import TimezoneFinder
+        
         hourly_forecast = []
         times = hourly.get('time', [])
         
         # 找到当前小时的索引
-        # 重要：OpenMeteo API 使用 timezone='auto' 参数，返回的时间是雪场当地时区
-        # 时间格式为 "2024-11-23T19:00"（无时区标记），表示雪场当地时间
-        # 因此我们直接使用 UTC 时间作为参考点，因为 API 会自动处理时区转换
-        # 实际上，我们只需要找到第一个 >= 当前时间的索引即可，不需要关心时区
+        # OpenMeteo API 使用 timezone='auto'，返回的是雪场当地时区的时间
+        # 所以我们需要获取雪场当地时区的当前时间来进行比较
         
-        # 由于 OpenMeteo 已经返回了雪场当地时间的小时数据
-        # 我们只需要取前24个未来的小时（API已经按时间排序）
-        # 通常 API 会返回从当前小时开始的数据，所以直接从索引0开始取24个即可
+        lat = resort_config.get('lat')
+        lon = resort_config.get('lon')
+        
+        try:
+            # 使用 timezonefinder 根据经纬度获取时区
+            tf = TimezoneFinder()
+            timezone_str = tf.timezone_at(lat=lat, lng=lon)
+            
+            if timezone_str:
+                # 获取雪场当地时区的当前时间
+                resort_tz = pytz.timezone(timezone_str)
+                now_local = datetime.now(resort_tz)
+                current_hour_str = now_local.strftime('%Y-%m-%dT%H:00')
+            else:
+                # Fallback: 使用 UTC
+                now_local = datetime.now(timezone.utc)
+                current_hour_str = now_local.strftime('%Y-%m-%dT%H:00')
+        except Exception as e:
+            # 如果时区查找失败，使用 UTC
+            print(f"时区查找失败: {e}，使用 UTC")
+            now_local = datetime.now(timezone.utc)
+            current_hour_str = now_local.strftime('%Y-%m-%dT%H:00')
+        
         start_index = 0
         
-        # 如果 times 列表为空，start_index 保持为 0
-        # 否则，我们假设 API 返回的第一个时间就是当前或未来的时间
+        # 在 times 列表中查找第一个 >= 当前时间的索引
+        for i, time_str in enumerate(times):
+            # 直接用字符串比较（ISO 8601 格式支持字符串比较）
+            if time_str >= current_hour_str:
+                start_index = i
+                break
         
-        # 从当前小时开始，取24小时数据
-        for i in range(start_index, min(start_index + 24, len(times))):
+        # 从当前小时开始，取168小时数据（7天）
+        for i in range(start_index, min(start_index + 168, len(times))):
             forecast_item = {
                 'time': times[i] if i < len(times) else None,
                 'temperature': temperatures[i] if i < len(temperatures) else None,
