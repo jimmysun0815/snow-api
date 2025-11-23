@@ -67,7 +67,7 @@ class OpenMeteoCollector(BaseCollector):
             'windspeed_unit': 'kmh',
             'precipitation_unit': 'mm',
             'timezone': 'auto',
-            'forecast_days': 7
+            'forecast_days': 4  # 4天 = 96小时，前端显示72小时
         }
         
         # 如果有 API Key，添加到参数中并使用付费 API 端点
@@ -87,8 +87,8 @@ class OpenMeteoCollector(BaseCollector):
         query_string = urllib.parse.urlencode(params, doseq=True)
         full_url = f"{api_url}?{query_string}"
         
-        # 使用带重试的请求方法
-        response = self.fetch_with_retry(full_url, max_retries=3, timeout=10)
+        # 使用带重试的请求方法（168小时数据需要更长timeout）
+        response = self.fetch_with_retry(full_url, max_retries=3, timeout=30)
         
         if not response:
             return None

@@ -334,8 +334,8 @@ class DataNormalizer:
                 start_index = i
                 break
         
-        # 从当前小时开始，取168小时数据（7天）
-        for i in range(start_index, min(start_index + 168, len(times))):
+        # 从当前小时开始，取96小时数据（4天）
+        for i in range(start_index, min(start_index + 96, len(times))):
             forecast_item = {
                 'time': times[i] if i < len(times) else None,
                 'temperature': temperatures[i] if i < len(temperatures) else None,
