@@ -291,12 +291,13 @@ class DataNormalizer:
             precipitation_24h = round(sum(precipitations[:24]), 1)  # mm
         
         # 未来24小时的详细数据（从当前小时开始）
-        from datetime import datetime
+        from datetime import datetime, timezone
         hourly_forecast = []
         times = hourly.get('time', [])
         
         # 找到当前小时的索引
-        now = datetime.now()
+        # 注意：OpenMeteo API 返回的是 UTC 时间，所以这里也要使用 UTC
+        now = datetime.now(timezone.utc)
         current_hour_str = now.strftime('%Y-%m-%dT%H:00')
         start_index = 0
         

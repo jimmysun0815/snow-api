@@ -163,23 +163,6 @@
       "onthesnow_enabled": true
     },
     {
-      "id": 11,
-      "name": "Crystal Mountain",
-      "slug": "crystal-mountain-mtnpowder",
-      "location": "Washington, USA",
-      "lat": 46.9358,
-      "lon": -121.4742,
-      "elevation_min": 1336,
-      "elevation_max": 2271,
-      "data_source": "mtnpowder",
-      "source_id": "80",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "MtnPowder - 华盛顿州",
-      "onthesnow_url": "https://www.onthesnow.com/washington/crystal-mountain-mtnpowder/skireport",
-      "onthesnow_enabled": true
-    },
-    {
       "id": 20,
       "name": "Vail",
       "slug": "vail",
@@ -1628,21 +1611,6 @@
       "notes": "Poconos 区域"
     },
     {
-      "id": 531,
-      "name": "Blue Mountain",
-      "slug": "blue-mountain-pa",
-      "location": "Pennsylvania, USA",
-      "lat": 40.8022,
-      "lon": -75.6089,
-      "elevation_min": 152,
-      "elevation_max": 457,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/pennsylvania/blue-mountain-ski-area/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "宾州东部"
-    },
-    {
       "id": 532,
       "name": "Jack Frost",
       "slug": "jack-frost",
@@ -1823,51 +1791,6 @@
       "notes": "温哥华北岸"
     },
     {
-      "id": 604,
-      "name": "Revelstoke",
-      "slug": "revelstoke-mountain-resort",
-      "location": "British Columbia, Canada",
-      "lat": 50.9983,
-      "lon": -118.1856,
-      "elevation_min": 509,
-      "elevation_max": 2225,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/british-columbia/revelstoke-mountain/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "北美最大垂直落差"
-    },
-    {
-      "id": 605,
-      "name": "Big White",
-      "slug": "big-white-ski-resort",
-      "location": "British Columbia, Canada",
-      "lat": 49.725,
-      "lon": -118.9361,
-      "elevation_min": 1508,
-      "elevation_max": 2319,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/british-columbia/big-white/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "粉雪天堂"
-    },
-    {
-      "id": 610,
-      "name": "Mt. Tremblant",
-      "slug": "mont-tremblant",
-      "location": "Quebec, Canada",
-      "lat": 46.2089,
-      "lon": -74.5881,
-      "elevation_min": 265,
-      "elevation_max": 875,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/quebec/tremblant/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "东部最佳度假村"
-    },
-    {
       "id": 611,
       "name": "Sommet Saint-Sauveur",
       "slug": "sommet-saint-sauveur",
@@ -1958,36 +1881,6 @@
       "notes": "Robert Redford度假村"
     },
     {
-      "id": 640,
-      "name": "Copper Mountain",
-      "slug": "copper-mountain-resort",
-      "location": "Colorado, USA",
-      "lat": 39.5022,
-      "lon": -106.1514,
-      "elevation_min": 2926,
-      "elevation_max": 3795,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/colorado/copper-mountain-resort/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "地形分级明确"
-    },
-    {
-      "id": 641,
-      "name": "Beaver Creek",
-      "slug": "beaver-creek-resort",
-      "location": "Colorado, USA",
-      "lat": 39.6042,
-      "lon": -106.5164,
-      "elevation_min": 2470,
-      "elevation_max": 3488,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/colorado/beaver-creek/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "豪华度假村"
-    },
-    {
       "id": 643,
       "name": "Purgatory",
       "slug": "purgatory-resort",
@@ -2016,36 +1909,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "纯专家级，需导游"
-    },
-    {
-      "id": 661,
-      "name": "Heavenly",
-      "slug": "heavenly",
-      "location": "California, USA",
-      "lat": 38.935,
-      "lon": -119.9403,
-      "elevation_min": 2002,
-      "elevation_max": 3068,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/california/heavenly-mountain-resort/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "太浩湖景观"
-    },
-    {
-      "id": 670,
-      "name": "Alta",
-      "slug": "alta",
-      "location": "Utah, USA",
-      "lat": 40.5883,
-      "lon": -111.6378,
-      "elevation_min": 2595,
-      "elevation_max": 3216,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/utah/alta-ski-area/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "仅限滑雪（禁止单板）"
     },
     {
       "id": 671,
@@ -2091,21 +1954,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "俄勒冈东部"
-    },
-    {
-      "id": 681,
-      "name": "Mt. Bachelor",
-      "slug": "mount-bachelor",
-      "location": "Oregon, USA",
-      "lat": 43.9789,
-      "lon": -121.6889,
-      "elevation_min": 1753,
-      "elevation_max": 2764,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/oregon/mt-bachelor/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "Bend附近，火山"
     },
     {
       "id": 690,
@@ -2481,21 +2329,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "麦迪逊附近"
-    },
-    {
-      "id": 852,
-      "name": "Devil's Head",
-      "slug": "devils-head",
-      "location": "Wisconsin, USA",
-      "lat": 43.4167,
-      "lon": -89.7333,
-      "elevation_min": 274,
-      "elevation_max": 396,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/wisconsin/devils-head/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "威斯康星德尔斯"
     },
     {
       "id": 860,
@@ -3021,21 +2854,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "费尔菲尔德"
-    },
-    {
-      "id": 970,
-      "name": "Snoqualmie Pass",
-      "slug": "snoqualmie-pass",
-      "location": "Washington, USA",
-      "lat": 47.4167,
-      "lon": -121.4167,
-      "elevation_min": 914,
-      "elevation_max": 1615,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/washington/the-summit-at-snoqualmie/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "西雅图附近"
     },
     {
       "id": 980,
@@ -4116,21 +3934,6 @@
       "enabled": true,
       "update_interval": 10800,
       "notes": "南加州Running Springs"
-    },
-    {
-      "id": 1390,
-      "name": "Ski Bowl",
-      "slug": "ski-bowl-oregon",
-      "location": "Oregon, USA",
-      "lat": 45.3014,
-      "lon": -121.7714,
-      "elevation_min": 1128,
-      "elevation_max": 1554,
-      "data_source": "onthesnow",
-      "source_url": "https://www.onthesnow.com/oregon/mt-hood-ski-bowl/skireport",
-      "enabled": true,
-      "update_interval": 10800,
-      "notes": "Hood山"
     }
   ],
   "metadata": {
