@@ -807,6 +807,66 @@ class DatabaseManager:
         self.redis_client.delete(f"trails:{resort_id}")
         self.redis_client.delete(f"trails:{resort_slug}")
     
+    def delete_resort(self, resort_id: int):
+        """
+        删除雪场及其所有关联数据
+        
+        ⚠️ 此操作无法恢复！
+        
+        Args:
+            resort_id: 雪场 ID
+        """
+        session = self.Session()  # 获取当前线程的 session
+        
+        try:
+            # 1. 检查雪场是否存在
+            resort = session.query(Resort).filter_by(id=resort_id).first()
+            
+            if not resort:
+                session.close()
+                raise ValueError(f'雪场 ID {resort_id} 不存在')
+            
+            resort_slug = resort.slug
+            resort_name = resort.name
+            
+            print(f"🗑️  开始删除雪场: ID={resort_id}, Name={resort_name}")
+            
+            # 2. 删除关联数据
+            # 删除天气数据
+            weather_count = session.query(ResortWeather).filter_by(resort_id=resort_id).delete()
+            print(f"   删除 {weather_count} 条天气数据")
+            
+            # 删除雪况数据
+            condition_count = session.query(ResortCondition).filter_by(resort_id=resort_id).delete()
+            print(f"   删除 {condition_count} 条雪况数据")
+            
+            # 删除雪道数据
+            trail_count = session.query(ResortTrail).filter_by(resort_id=resort_id).delete()
+            print(f"   删除 {trail_count} 条雪道数据")
+            
+            # 删除摄像头数据
+            webcam_count = session.query(ResortWebcam).filter_by(resort_id=resort_id).delete()
+            print(f"   删除 {webcam_count} 条摄像头数据")
+            
+            # 3. 删除主数据
+            session.delete(resort)
+            
+            # 4. 提交事务
+            session.commit()
+            print(f"✅ 雪场删除成功: {resort_name}")
+            
+            # 5. 清除缓存
+            self._invalidate_cache(resort_id, resort_slug)
+            self._invalidate_trails_cache(resort_id, resort_slug)
+            print(f"✅ 缓存已清除")
+            
+        except Exception as e:
+            session.rollback()
+            print(f"❌ 删除雪场失败: {e}")
+            raise
+        finally:
+            session.close()
+    
     def close(self):
         """关闭连接"""
         self.session.close()

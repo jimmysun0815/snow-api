@@ -402,6 +402,90 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     return R * c
 
 
+# ==================== Admin API ====================
+
+def verify_admin_api_key():
+    """验证 Admin API Key"""
+    api_key = request.headers.get('X-Admin-API-Key')
+    expected_key = os.getenv('ADMIN_API_KEY')
+    
+    if not expected_key:
+        return False, "Admin API Key 未配置"
+    
+    if not api_key:
+        return False, "缺少 X-Admin-API-Key header"
+    
+    if api_key != expected_key:
+        return False, "API Key 无效"
+    
+    return True, None
+
+
+@app.route('/api/admin/resorts/<int:resort_id>', methods=['DELETE'])
+def admin_delete_resort(resort_id):
+    """
+    删除雪场（仅从 RDS 删除）
+    
+    ⚠️ 需要 Admin API Key 认证
+    ⚠️ 此操作无法恢复！
+    
+    Headers:
+        X-Admin-API-Key: 管理员 API Key
+    
+    Returns:
+        200: 删除成功
+        401: 未授权
+        404: 雪场不存在
+        500: 服务器错误
+    """
+    # 验证 API Key
+    is_valid, error_msg = verify_admin_api_key()
+    if not is_valid:
+        return jsonify({
+            'success': False,
+            'error': error_msg
+        }), 401
+    
+    if not db_manager:
+        return jsonify({
+            'success': False,
+            'error': '数据库未连接'
+        }), 500
+    
+    try:
+        # 检查雪场是否存在
+        resort = db_manager.get_resort_by_id(resort_id)
+        if not resort:
+            return jsonify({
+                'success': False,
+                'error': f'雪场 ID {resort_id} 不存在'
+            }), 404
+        
+        resort_name = resort.get('name', f'ID-{resort_id}')
+        
+        # 删除雪场（包括关联数据）
+        db_manager.delete_resort(resort_id)
+        
+        print(f"✅ [Admin API] 删除雪场: ID={resort_id}, Name={resort_name}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功删除雪场: {resort_name}',
+            'resort_id': resort_id,
+            'resort_name': resort_name
+        }), 200
+    
+    except Exception as e:
+        print(f"❌ [Admin API] 删除雪场失败: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': f'删除失败: {str(e)}'
+        }), 500
+
+
 if __name__ == '__main__':
     print("\n" + "=" * 80)
     print("[START] Flask API 服务已启动")

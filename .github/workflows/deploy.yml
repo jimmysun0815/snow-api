@@ -106,6 +106,40 @@ jobs:
             --region ${{ env.AWS_REGION }}
           
           echo "✅ API Lambda 部署成功"
+          
+          echo "⏳ 等待 Lambda 更新完成..."
+          aws lambda wait function-updated \
+            --function-name resort-data-api \
+            --region ${{ env.AWS_REGION }} || true
+          
+          echo "🔧 更新 API Lambda 环境变量 (ADMIN_API_KEY)..."
+          
+          # 获取现有环境变量
+          EXISTING_ENV=$(aws lambda get-function-configuration \
+            --function-name resort-data-api \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Environment.Variables' \
+            --output json)
+          
+          echo "现有环境变量: $EXISTING_ENV"
+          
+          # 使用 jq 添加 ADMIN_API_KEY
+          UPDATED_ENV=$(echo "$EXISTING_ENV" | jq '. + {"ADMIN_API_KEY": "${{ secrets.ADMIN_API_KEY }}"}')
+          
+          echo "更新后的环境变量: $UPDATED_ENV"
+          
+          # 写入临时文件
+          echo "{\"Variables\": $UPDATED_ENV}" > api_env.json
+          
+          # 更新 Lambda 配置
+          aws lambda update-function-configuration \
+            --function-name resort-data-api \
+            --environment file://api_env.json \
+            --region ${{ env.AWS_REGION }}
+          
+          rm api_env.json
+          
+          echo "✅ API Lambda 环境变量更新完成"
 
       - name: Upload Collector Lambda to S3
         run: |

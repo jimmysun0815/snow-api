@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-同步雪场数据从 AWS RDS 到 Supabase
-通过 API Gateway 获取数据（不直接连接 RDS）
+同步雪场数据从 resorts_config.json 到 Supabase
+使用配置文件作为唯一的真实来源
 
 运行方式：
     python sync_resorts_to_supabase.py
 
 环境变量：
-    API_BASE_URL: 后端 API 地址（默认：https://api.steponsnow.com）
     SUPABASE_URL: Supabase 项目 URL
     SUPABASE_SERVICE_KEY: Supabase Service Key
 """
 
 import os
 import sys
-import requests
+import json
 from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -23,28 +22,31 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-def get_resorts_from_api():
-    """通过 API 获取所有雪场数据"""
+def get_resorts_from_config():
+    """
+    从 resorts_config.json 获取雪场数据
+    
+    这是唯一的真实来源！
+    """
     print("=" * 80)
-    print("📡 通过 API 获取雪场数据...")
+    print("📡 从 resorts_config.json 获取雪场数据...")
     print("=" * 80)
     
-    api_base_url = os.getenv('API_BASE_URL', 'https://api.steponsnow.com')
-    api_url = f"{api_base_url}/api/resorts/summary"
+    config_file = 'resorts_config.json'
     
-    print(f"🔗 API 地址: {api_url}")
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(f"❌ 配置文件不存在: {config_file}")
     
     try:
-        # 调用 API
-        response = requests.get(api_url, timeout=30)
-        response.raise_for_status()
+        # 读取配置文件
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config = json.load(f)
         
-        data = response.json()
-        resorts = data.get('resorts', [])
+        resorts = config.get('resorts', [])
         
-        print(f"✅ 从 API 获取到 {len(resorts)} 个雪场")
+        print(f"✅ 从配置文件读取到 {len(resorts)} 个雪场")
         
-        # 格式化数据（添加同步时间戳）
+        # 格式化数据（只保留基本信息，不包含动态数据）
         resort_data = []
         for r in resorts:
             resort_data.append({
@@ -56,34 +58,33 @@ def get_resorts_from_api():
                 'lon': r.get('lon'),
                 'elevation_min': r.get('elevation_min'),
                 'elevation_max': r.get('elevation_max'),
-                'address': r.get('address'),
-                'city': r.get('city'),
-                'zip_code': r.get('zip_code'),
-                'phone': r.get('phone'),
-                'website': r.get('website'),
-                'opening_hours_weekday': r.get('opening_hours_weekday'),
-                'opening_hours_data': r.get('opening_hours_data'),
-                'is_open_now': r.get('is_open_now'),
                 'data_source': r.get('data_source'),
                 'source_url': r.get('source_url'),
                 'enabled': r.get('enabled', True),
+                'notes': r.get('notes'),
                 'synced_at': datetime.now().isoformat(),
-                'updated_at': r.get('updated_at'),
             })
         
         return resort_data
     
-    except requests.exceptions.RequestException as e:
-        print(f"❌ API 请求失败: {e}")
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON 解析失败: {e}")
         raise
     except Exception as e:
         print(f"❌ 处理数据失败: {e}")
         raise
 
 def sync_to_supabase(resort_data):
-    """将雪场数据同步到 Supabase"""
+    """
+    将雪场数据同步到 Supabase
+    
+    🔥 新逻辑：
+    1. 删除 Supabase 中所有雪场
+    2. 从 resorts_config.json 重新插入
+    3. resorts_config.json 是唯一的真实来源
+    """
     print("=" * 80)
-    print("📤 同步数据到 Supabase...")
+    print("📤 同步数据到 Supabase (完全覆盖)...")
     print("=" * 80)
     
     supabase_url = os.getenv('SUPABASE_URL')
@@ -111,78 +112,74 @@ def sync_to_supabase(resort_data):
             print("   - is_open_now (BOOLEAN)")
             print()
         
-        # 批量 upsert（如果存在则更新，不存在则插入）
-        print(f"🔄 开始 upsert {len(resort_data)} 条数据...")
+        # 🔥 第1步：删除 Supabase 中所有雪场
+        print(f"🗑️  删除 Supabase 中所有现有雪场...")
+        try:
+            # 获取所有雪场 ID
+            existing_response = supabase.table('resorts').select('id').execute()
+            existing_ids = [item['id'] for item in existing_response.data]
+            
+            if existing_ids:
+                print(f"   找到 {len(existing_ids)} 个现有雪场，准备删除...")
+                # 批量删除
+                supabase.table('resorts').delete().in_('id', existing_ids).execute()
+                print(f"✅ 已删除所有现有雪场")
+            else:
+                print(f"ℹ️  Supabase 中没有现有雪场")
+        except Exception as e:
+            print(f"⚠️  删除现有雪场时出错: {e}")
+            # 继续执行，因为可能只是没有数据
+        
+        # 🔥 第2步：从 resorts_config.json 插入所有雪场
+        print(f"\n🔄 开始插入 {len(resort_data)} 条数据...")
         
         # 打印第一条数据的字段，用于调试
         if resort_data:
             print(f"📋 数据字段示例（第一个雪场）：")
             first_resort = resort_data[0]
-            for key in ['id', 'name', 'opening_hours_weekday', 'opening_hours_data', 'is_open_now']:
+            for key in ['id', 'name', 'slug', 'location', 'enabled']:
                 value = first_resort.get(key)
-                if value is None:
-                    print(f"   {key}: ❌ None")
-                elif isinstance(value, str) and len(value) > 50:
-                    print(f"   {key}: ✅ {value[:50]}...")
-                else:
-                    print(f"   {key}: ✅ {value}")
-            
-            # 统计有营业时间的雪场
-            has_hours_count = sum(1 for r in resort_data if r.get('opening_hours_weekday'))
-            print(f"\n📊 统计: {has_hours_count}/{len(resort_data)} 个雪场有营业时间数据")
+                print(f"   {key}: {value}")
             print()
         
-        # Supabase 的 upsert 有批量限制，我们分批处理
+        # Supabase 的插入有批量限制，我们分批处理
         batch_size = 100
         total_synced = 0
         
-        print("📝 同步策略：强制更新所有字段（无论记录是否存在）")
+        print("📝 插入策略：全新插入所有雪场")
         print()
         
         for i in range(0, len(resort_data), batch_size):
             batch = resort_data[i:i + batch_size]
             
-            # 方式 1: 尝试先删除再插入（确保完全更新）
-            # 这样可以避免 upsert 的任何歧义
             try:
-                # 收集这批的 ID
-                batch_ids = [item['id'] for item in batch]
-                
-                # 删除这些 ID 的记录（如果存在）
-                supabase.table('resorts').delete().in_('id', batch_ids).execute()
-                
-                # 插入新数据
+                # 直接插入
                 response = supabase.table('resorts').insert(batch).execute()
                 
                 total_synced += len(batch)
                 print(f"   进度: {total_synced}/{len(resort_data)}")
             except Exception as batch_error:
-                print(f"   ⚠️  批次 {i}-{i+len(batch)} 同步失败: {batch_error}")
-                # 如果删除+插入失败，回退到 upsert
-                print(f"   🔄 回退到 upsert 模式...")
-                response = supabase.table('resorts').upsert(batch).execute()
-                total_synced += len(batch)
+                print(f"   ⚠️  批次 {i}-{i+len(batch)} 插入失败: {batch_error}")
+                # 尝试逐个插入以找出问题
+                for item in batch:
+                    try:
+                        supabase.table('resorts').insert([item]).execute()
+                        total_synced += 1
+                    except Exception as item_error:
+                        print(f"      ❌ 雪场 ID {item['id']} ({item['name']}) 插入失败: {item_error}")
                 print(f"   进度: {total_synced}/{len(resort_data)}")
         
-        print(f"✅ 同步完成！共同步 {total_synced} 个雪场")
+        print(f"✅ 同步完成！共插入 {total_synced} 个雪场")
         
         # 验证数据
         count_response = supabase.table('resorts').select('*', count='exact').execute()
-        print(f"✅ Supabase 中现有 {count_response.count} 个雪场")
+        print(f"\n✅ Supabase 中现有 {count_response.count} 个雪场")
+        print(f"✅ 配置文件中有 {len(resort_data)} 个雪场")
         
-        # 验证营业时间字段是否正确同步（检查 ID 1-5 的雪场）
-        print("\n🔍 验证营业时间字段...")
-        sample_resort = supabase.table('resorts').select(
-            'id, name, opening_hours_weekday, is_open_now'
-        ).in_('id', [1, 2, 3, 4, 5]).execute()
-        
-        if sample_resort.data:
-            print(f"📋 ID 1-5 雪场的营业时间状态：")
-            for r in sample_resort.data:
-                has_hours = r.get('opening_hours_weekday') is not None
-                print(f"   ID {r.get('id')} - {r.get('name')}: {'✅ 有营业时间' if has_hours else '❌ 无营业时间'} (is_open_now: {r.get('is_open_now')})")
+        if count_response.count == len(resort_data):
+            print(f"🎉 数据完全同步！")
         else:
-            print("⚠️  无法查询到 ID 1-5 的雪场")
+            print(f"⚠️  数据不一致: Supabase {count_response.count} vs 配置文件 {len(resort_data)}")
         
         return True
     
@@ -197,20 +194,25 @@ def main():
     print("\n")
     print("=" * 80)
     print("🔄 雪场数据同步工具")
-    print("   API Gateway → Supabase")
+    print("   resorts_config.json → Supabase (完全覆盖)")
     print("=" * 80)
     print(f"⏰ 开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80)
     
     try:
-        # 步骤 1: 从 API 获取
-        resort_data = get_resorts_from_api()
+        # 步骤 1: 从配置文件获取
+        resort_data = get_resorts_from_config()
         
-        # 步骤 2: 同步到 Supabase
+        if not resort_data:
+            print("❌ 配置文件中没有雪场数据")
+            sys.exit(1)
+        
+        # 步骤 2: 同步到 Supabase (完全覆盖)
         sync_to_supabase(resort_data)
         
         print("=" * 80)
         print("✅ 同步任务完成！")
+        print("🔥 resorts_config.json 是唯一的真实来源")
         print(f"⏰ 结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 80)
         print("\n")
