@@ -111,10 +111,7 @@ jobs:
         run: |
           echo "☁️ 上传 Collector Lambda 到 S3..."
           
-          # 从 Terraform 输出获取 S3 bucket 名称
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           echo "📦 使用 S3 Bucket: $BUCKET"
           
@@ -128,10 +125,7 @@ jobs:
         run: |
           echo "🚀 部署 Collector Lambda 函数（从 S3）..."
           
-          # 从 Terraform 输出获取 S3 bucket 名称
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws lambda update-function-code \
             --function-name resort-data-collector \
@@ -211,9 +205,7 @@ jobs:
         run: |
           echo "☁️ 上传 Contact Collector Lambda 到 S3..."
           
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws s3 cp contact-collector-lambda.zip "s3://${BUCKET}/contact-collector-lambda.zip" \
             --region ${{ env.AWS_REGION }}
@@ -224,9 +216,7 @@ jobs:
         run: |
           echo "🚀 部署 Contact Collector Lambda 函数（从 S3）..."
           
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws lambda update-function-code \
             --function-name resort-data-contact-collector \
@@ -342,9 +332,7 @@ jobs:
         run: |
           echo "☁️ 上传 Notification Handler Lambda 到 S3..."
           
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws s3 cp notification-handler.zip "s3://${BUCKET}/notification-handler.zip" \
             --region ${{ env.AWS_REGION }}
@@ -355,9 +343,7 @@ jobs:
         run: |
           echo "🚀 部署 Notification Handler Lambda 函数（从 S3）..."
           
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws lambda update-function-code \
             --function-name resort-data-notification-handler \
@@ -371,9 +357,7 @@ jobs:
         run: |
           echo "☁️ 上传 Snow Checker Lambda 到 S3..."
           
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws s3 cp snow-checker.zip "s3://${BUCKET}/snow-checker.zip" \
             --region ${{ env.AWS_REGION }}
@@ -384,9 +368,7 @@ jobs:
         run: |
           echo "🚀 部署 Snow Checker Lambda 函数（从 S3）..."
           
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws lambda update-function-code \
             --function-name resort-data-snow-checker \
@@ -402,9 +384,7 @@ jobs:
         run: |
           echo "☁️ 上传 SQS Notification Processor Lambda 到 S3..."
           
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws s3 cp sqs-notification-processor.zip "s3://${BUCKET}/sqs-notification-processor.zip" \
             --region ${{ env.AWS_REGION }}
@@ -415,9 +395,7 @@ jobs:
         run: |
           echo "🚀 部署 SQS Notification Processor Lambda 函数（从 S3）..."
           
-          cd terraform
-          BUCKET=$(terraform output -raw lambda_artifacts_bucket 2>/dev/null || echo "resort-data-lambda-artifacts")
-          cd ..
+          BUCKET="resort-data-lambda-artifacts-579866932024"
           
           aws lambda update-function-code \
             --function-name resort-data-sqs-notification-processor \
