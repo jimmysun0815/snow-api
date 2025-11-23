@@ -74,7 +74,7 @@ jobs:
           pip install -r requirements.txt -t package/
           
           # 复制所有必要的代码文件
-          cp config.py db_manager.py models.py normalizer.py failure_tracker.py resort_manager.py s3_uploader.py package/
+          cp config.py db_manager.py models.py normalizer.py failure_tracker.py resort_manager.py s3_uploader.py monitor.py package/
           cp resorts_config.json package/
           cp -r collectors package/
           cp collector_handler.py package/
