@@ -807,6 +807,70 @@ class DatabaseManager:
         self.redis_client.delete(f"trails:{resort_id}")
         self.redis_client.delete(f"trails:{resort_slug}")
     
+    def disable_resort(self, resort_id: int) -> dict:
+        """
+        禁用雪场（软删除，设置 enabled=false）
+        
+        ✅ 可恢复的删除操作
+        ✅ 不删除任何数据，只标记为禁用
+        
+        Args:
+            resort_id: 雪场 ID
+        
+        Returns:
+            {
+                'resort_id': int,
+                'resort_name': str,
+                'resort_slug': str
+            }
+        
+        Raises:
+            ValueError: 雪场不存在
+        """
+        session = self.Session()
+        
+        try:
+            # 检查雪场是否存在
+            resort = session.query(Resort).filter_by(id=resort_id).first()
+            
+            if not resort:
+                session.close()
+                raise ValueError(f'雪场 ID {resort_id} 不存在')
+            
+            resort_slug = resort.slug
+            resort_name = resort.name
+            
+            print(f"🔒 禁用雪场: ID={resort_id}, Name={resort_name}")
+            
+            # 设置为禁用
+            resort.enabled = False
+            
+            # 提交事务
+            session.commit()
+            print(f"✅ 雪场已禁用: {resort_name}")
+            
+            # 清除缓存（这样前端立即看不到这个雪场）
+            self._invalidate_cache(resort_id, resort_slug)
+            self._invalidate_trails_cache(resort_id, resort_slug)
+            print(f"✅ 缓存已清除")
+            
+            # 返回禁用的雪场信息
+            return {
+                'resort_id': resort_id,
+                'resort_name': resort_name,
+                'resort_slug': resort_slug
+            }
+            
+        except ValueError:
+            session.close()
+            raise
+        except Exception as e:
+            session.rollback()
+            print(f"❌ 禁用雪场失败: {e}")
+            raise
+        finally:
+            session.close()
+    
     def delete_resort(self, resort_id: int) -> dict:
         """
         删除雪场及其所有关联数据

@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-同步雪场数据从 resorts_config.json 到 Supabase
-使用配置文件作为唯一的真实来源
+同步雪场数据从 RDS 到 Supabase
+只同步 enabled=true 的雪场（软删除逻辑）
 
 运行方式：
     python sync_resorts_to_supabase.py
 
 环境变量：
+    API_BASE_URL: 后端 API 地址（默认：https://api.steponsnow.com）
     SUPABASE_URL: Supabase 项目 URL
     SUPABASE_SERVICE_KEY: Supabase Service Key
 """
 
 import os
 import sys
-import json
+import requests
 from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -22,33 +23,43 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-def get_resorts_from_config():
+def get_resorts_from_rds():
     """
-    从 resorts_config.json 获取雪场数据
+    通过 API 从 RDS 获取雪场数据
     
-    这是唯一的真实来源！
+    🔥 只获取 enabled=true 的雪场（软删除逻辑）
     """
     print("=" * 80)
-    print("📡 从 resorts_config.json 获取雪场数据...")
+    print("📡 通过 API 从 RDS 获取启用的雪场数据...")
     print("=" * 80)
     
-    config_file = 'resorts_config.json'
+    api_base_url = os.getenv('API_BASE_URL', 'https://api.steponsnow.com')
+    api_url = f"{api_base_url}/api/resorts/summary"
     
-    if not os.path.exists(config_file):
-        raise FileNotFoundError(f"❌ 配置文件不存在: {config_file}")
+    print(f"🔗 API 地址: {api_url}")
     
     try:
-        # 读取配置文件
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+        # 调用 API
+        response = requests.get(api_url, timeout=30)
+        response.raise_for_status()
         
-        resorts = config.get('resorts', [])
+        data = response.json()
+        resorts = data.get('resorts', [])
         
-        print(f"✅ 从配置文件读取到 {len(resorts)} 个雪场")
+        print(f"✅ 从 API 获取到 {len(resorts)} 个雪场")
         
-        # 格式化数据（只保留基本信息，不包含动态数据）
+        # 🔥 只保留 enabled=true 的雪场
         resort_data = []
+        disabled_count = 0
+        
         for r in resorts:
+            enabled = r.get('enabled', True)
+            
+            # 跳过已禁用的雪场
+            if not enabled:
+                disabled_count += 1
+                continue
+            
             resort_data.append({
                 'id': r.get('id'),
                 'name': r.get('name'),
@@ -58,17 +69,27 @@ def get_resorts_from_config():
                 'lon': r.get('lon'),
                 'elevation_min': r.get('elevation_min'),
                 'elevation_max': r.get('elevation_max'),
+                'address': r.get('address'),
+                'city': r.get('city'),
+                'zip_code': r.get('zip_code'),
+                'phone': r.get('phone'),
+                'website': r.get('website'),
+                'opening_hours_weekday': r.get('opening_hours_weekday'),
+                'opening_hours_data': r.get('opening_hours_data'),
+                'is_open_now': r.get('is_open_now'),
                 'data_source': r.get('data_source'),
                 'source_url': r.get('source_url'),
-                'enabled': r.get('enabled', True),
-                'notes': r.get('notes'),
+                'enabled': True,  # 同步到 Supabase 的都是启用的
                 'synced_at': datetime.now().isoformat(),
+                'updated_at': r.get('updated_at'),
             })
+        
+        print(f"✅ 过滤后: {len(resort_data)} 个启用的雪场, {disabled_count} 个已禁用")
         
         return resort_data
     
-    except json.JSONDecodeError as e:
-        print(f"❌ JSON 解析失败: {e}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ API 请求失败: {e}")
         raise
     except Exception as e:
         print(f"❌ 处理数据失败: {e}")
@@ -78,13 +99,13 @@ def sync_to_supabase(resort_data):
     """
     将雪场数据同步到 Supabase
     
-    🔥 新逻辑：
+    🔥 软删除逻辑：
     1. 删除 Supabase 中所有雪场
-    2. 从 resorts_config.json 重新插入
-    3. resorts_config.json 是唯一的真实来源
+    2. 从 RDS 重新插入 enabled=true 的雪场
+    3. RDS 的 enabled 字段是唯一的控制开关
     """
     print("=" * 80)
-    print("📤 同步数据到 Supabase (完全覆盖)...")
+    print("📤 同步启用的雪场到 Supabase (完全覆盖)...")
     print("=" * 80)
     
     supabase_url = os.getenv('SUPABASE_URL')
@@ -194,17 +215,17 @@ def main():
     print("\n")
     print("=" * 80)
     print("🔄 雪场数据同步工具")
-    print("   resorts_config.json → Supabase (完全覆盖)")
+    print("   RDS (enabled=true) → Supabase (完全覆盖)")
     print("=" * 80)
     print(f"⏰ 开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80)
     
     try:
-        # 步骤 1: 从配置文件获取
-        resort_data = get_resorts_from_config()
+        # 步骤 1: 从 RDS 获取启用的雪场
+        resort_data = get_resorts_from_rds()
         
         if not resort_data:
-            print("❌ 配置文件中没有雪场数据")
+            print("❌ RDS 中没有启用的雪场数据")
             sys.exit(1)
         
         # 步骤 2: 同步到 Supabase (完全覆盖)
@@ -212,7 +233,7 @@ def main():
         
         print("=" * 80)
         print("✅ 同步任务完成！")
-        print("🔥 resorts_config.json 是唯一的真实来源")
+        print("🔥 只同步了 enabled=true 的雪场")
         print(f"⏰ 结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 80)
         print("\n")
