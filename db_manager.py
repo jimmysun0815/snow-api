@@ -841,22 +841,26 @@ class DatabaseManager:
             
             print(f"🗑️  开始删除雪场: ID={resort_id}, Name={resort_name}")
             
-            # 2. 删除关联数据
+            # 2. 删除关联数据（按照外键依赖顺序）
             # 删除天气数据
-            weather_count = session.query(ResortWeather).filter_by(resort_id=resort_id).delete()
+            weather_count = session.query(ResortWeather).filter_by(resort_id=resort_id).delete(synchronize_session=False)
             print(f"   删除 {weather_count} 条天气数据")
             
             # 删除雪况数据
-            condition_count = session.query(ResortCondition).filter_by(resort_id=resort_id).delete()
+            condition_count = session.query(ResortCondition).filter_by(resort_id=resort_id).delete(synchronize_session=False)
             print(f"   删除 {condition_count} 条雪况数据")
             
             # 删除雪道数据
-            trail_count = session.query(ResortTrail).filter_by(resort_id=resort_id).delete()
+            trail_count = session.query(ResortTrail).filter_by(resort_id=resort_id).delete(synchronize_session=False)
             print(f"   删除 {trail_count} 条雪道数据")
             
             # 删除摄像头数据
-            webcam_count = session.query(ResortWebcam).filter_by(resort_id=resort_id).delete()
+            webcam_count = session.query(ResortWebcam).filter_by(resort_id=resort_id).delete(synchronize_session=False)
             print(f"   删除 {webcam_count} 条摄像头数据")
+            
+            # Flush 确保关联数据先被删除
+            session.flush()
+            print(f"   ✅ 关联数据已删除")
             
             # 3. 删除主数据
             session.delete(resort)
