@@ -827,32 +827,35 @@ class DatabaseManager:
         Raises:
             ValueError: 雪场不存在
         """
-        session = self.Session()
+        session = self.Session()  # 获取当前线程的 session
         
         try:
             # 检查雪场是否存在
             resort = session.query(Resort).filter_by(id=resort_id).first()
             
             if not resort:
-                session.close()
                 raise ValueError(f'雪场 ID {resort_id} 不存在')
             
             resort_slug = resort.slug
             resort_name = resort.name
+            current_enabled = resort.enabled
             
-            print(f"🔒 禁用雪场: ID={resort_id}, Name={resort_name}")
+            print(f"🔒 禁用雪场: ID={resort_id}, Name={resort_name}, 当前状态: enabled={current_enabled}")
             
             # 设置为禁用
             resort.enabled = False
             
             # 提交事务
             session.commit()
-            print(f"✅ 雪场已禁用: {resort_name}")
+            print(f"✅ 雪场已禁用: {resort_name} (enabled: {current_enabled} → False)")
             
             # 清除缓存（这样前端立即看不到这个雪场）
-            self._invalidate_cache(resort_id, resort_slug)
-            self._invalidate_trails_cache(resort_id, resort_slug)
-            print(f"✅ 缓存已清除")
+            try:
+                self._invalidate_cache(resort_id, resort_slug)
+                self._invalidate_trails_cache(resort_id, resort_slug)
+                print(f"✅ 缓存已清除")
+            except Exception as cache_error:
+                print(f"⚠️  清除缓存失败（不影响主操作）: {cache_error}")
             
             # 返回禁用的雪场信息
             return {
@@ -862,11 +865,13 @@ class DatabaseManager:
             }
             
         except ValueError:
-            session.close()
+            # 雪场不存在，直接抛出
             raise
         except Exception as e:
             session.rollback()
             print(f"❌ 禁用雪场失败: {e}")
+            import traceback
+            traceback.print_exc()
             raise
         finally:
             session.close()

@@ -421,13 +421,13 @@ def verify_admin_api_key():
     return True, None
 
 
-@app.route('/api/admin/resorts/<int:resort_id>/disable', methods=['POST'])
-def admin_disable_resort(resort_id):
+@app.route('/api/admin/resorts/<int:resort_id>', methods=['DELETE'])
+def admin_delete_resort(resort_id):
     """
     禁用雪场（软删除，设置 enabled=false）
     
     ⚠️ 需要 Admin API Key 认证
-    ✅ 可以通过设置 enabled=true 恢复
+    ✅ 这是软删除，数据仍保留在 RDS，可以恢复
     
     Headers:
         X-Admin-API-Key: 管理员 API Key
@@ -456,14 +456,14 @@ def admin_disable_resort(resort_id):
         # 调用禁用方法（软删除）
         result = db_manager.disable_resort(resort_id)
         
-        print(f"✅ [Admin API] 禁用雪场: ID={result['resort_id']}, Name={result['resort_name']}")
+        print(f"✅ [Admin API] 禁用雪场 (软删除): ID={result['resort_id']}, Name={result['resort_name']}")
         
-        # 禁用成功
         return jsonify({
             'success': True,
             'message': f'成功禁用雪场: {result["resort_name"]}',
             'resort_id': result['resort_id'],
-            'resort_name': result['resort_name']
+            'resort_name': result['resort_name'],
+            'action': 'disabled'  # 标记这是禁用操作
         }), 200
     
     except ValueError as e:
@@ -475,7 +475,6 @@ def admin_disable_resort(resort_id):
         }), 404
     
     except Exception as e:
-        # 其他错误
         print(f"❌ [Admin API] 禁用雪场失败: {e}")
         import traceback
         traceback.print_exc()
