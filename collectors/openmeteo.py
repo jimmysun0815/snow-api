@@ -67,7 +67,7 @@ class OpenMeteoCollector(BaseCollector):
             'windspeed_unit': 'kmh',
             'precipitation_unit': 'mm',
             'timezone': 'auto',
-            'forecast_days': 4  # 4天 = 96小时，前端显示72小时
+            'forecast_days': 8  # 8天数据，确保完整的7天预报（包含今天）
         }
         
         # 如果有 API Key，添加到参数中并使用付费 API 端点
