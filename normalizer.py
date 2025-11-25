@@ -291,30 +291,17 @@ class DataNormalizer:
             precipitation_24h = round(sum(precipitations[:24]), 1)  # mm
         
         # 未来80小时的详细数据（从当前小时开始）
-        from datetime import datetime, timezone
-        
         hourly_forecast = []
         times = hourly.get('time', [])
         
-        # 找到当前小时的索引
-        # OpenMeteo API 使用 timezone='auto'，返回的是雪场当地时区的时间
-        # API 返回的时间格式为 "2024-11-23T19:00"（ISO 8601 格式）
-        # 我们直接使用 UTC 时间进行比较（因为 API 已经自动处理了时区）
+        # Open-Meteo API 配置说明：
+        # - 使用 timezone='auto' 参数时，API 返回雪场当地时区的时间
+        # - 返回的时间格式为 "2024-11-23T19:00"（无时区标记，表示当地时间）
+        # - API 已经自动从当前时间开始返回未来的小时数据
+        # - 因此我们直接从索引 0 开始取数据即可，无需手动查找起始索引
         
-        now_utc = datetime.now(timezone.utc)
-        current_hour_str = now_utc.strftime('%Y-%m-%dT%H:00')
-        
-        start_index = 0
-        
-        # 在 times 列表中查找第一个 >= 当前时间的索引
-        # 直接用字符串比较（ISO 8601 格式支持字符串比较）
-        for i, time_str in enumerate(times):
-            if time_str >= current_hour_str:
-                start_index = i
-                break
-        
-        # 从当前小时开始，取 80 小时数据（约 3.3 天，比 72 小时多一点）
-        for i in range(start_index, min(start_index + 80, len(times))):
+        # 从索引 0 开始，取 80 小时数据（约 3.3 天，比 72 小时多一点）
+        for i in range(min(80, len(times))):
             forecast_item = {
                 'time': times[i] if i < len(times) else None,
                 'temperature': temperatures[i] if i < len(temperatures) else None,
