@@ -22,6 +22,10 @@ class OpenMeteoCollector(BaseCollector):
         """
         从 Open-Meteo API 采集天气数据
         
+        优化策略：
+        - Hourly 数据：采集 4 天（96小时，显示 72 小时足够）
+        - Daily 数据：采集 8 天（确保完整的 7 天预报）
+        
         Returns:
             原始 JSON 数据或 None
         """
@@ -33,8 +37,25 @@ class OpenMeteoCollector(BaseCollector):
             self.log('ERROR', '缺少经纬度信息')
             return None
         
-        # API 参数
-        params = {
+        # 确定 API 端点和 Key
+        api_key = Config.OPENMETEO_API_KEY
+        if api_key:
+            api_url = self.API_BASE_URL_PAID
+            self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用付费 API]')
+        else:
+            api_url = self.API_BASE_URL_FREE
+            self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用免费 API]')
+            # 免费 API 需要延迟以避免速率限制
+            self.random_delay(1.0, 2.0)
+        
+        # 方案：发送一个请求，但 hourly 只采集 4 天，daily 采集 8 天
+        # Open-Meteo API 支持 forecast_days 参数，但 hourly 和 daily 会使用相同的天数
+        # 因此需要发送两个请求分别获取
+        
+        import urllib.parse
+        
+        # 请求 1：获取 4 天的 hourly 数据
+        params_hourly = {
             'latitude': lat,
             'longitude': lon,
             'hourly': [
@@ -54,6 +75,33 @@ class OpenMeteoCollector(BaseCollector):
                 'temperature_700hPa',   # ~3000m
                 'temperature_500hPa',   # ~5500m
             ],
+            'temperature_unit': 'celsius',
+            'windspeed_unit': 'kmh',
+            'precipitation_unit': 'mm',
+            'timezone': 'auto',
+            'forecast_days': 4  # 4天 hourly 数据（96小时）
+        }
+        
+        if api_key:
+            params_hourly['apikey'] = api_key
+        
+        query_hourly = urllib.parse.urlencode(params_hourly, doseq=True)
+        url_hourly = f"{api_url}?{query_hourly}"
+        
+        response_hourly = self.fetch_with_retry(url_hourly, max_retries=3, timeout=30)
+        if not response_hourly:
+            return None
+        
+        try:
+            data_hourly = response_hourly.json()
+        except ValueError as e:
+            self.log('ERROR', f'Hourly 数据 JSON 解析失败: {e}')
+            return None
+        
+        # 请求 2：获取 8 天的 daily 数据
+        params_daily = {
+            'latitude': lat,
+            'longitude': lon,
             'daily': [
                 'sunrise',
                 'sunset',
@@ -67,42 +115,36 @@ class OpenMeteoCollector(BaseCollector):
             'windspeed_unit': 'kmh',
             'precipitation_unit': 'mm',
             'timezone': 'auto',
-            'forecast_days': 8  # 8天数据，确保完整的7天预报（包含今天）
+            'forecast_days': 8  # 8天 daily 数据
         }
         
-        # 如果有 API Key，添加到参数中并使用付费 API 端点
-        api_key = Config.OPENMETEO_API_KEY
         if api_key:
-            params['apikey'] = api_key
-            api_url = self.API_BASE_URL_PAID
-            self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用付费 API，无速率限制]')
-        else:
-            api_url = self.API_BASE_URL_FREE
-            self.log('INFO', f'开始采集天气数据 (lat={lat}, lon={lon}) [使用免费 API]')
-            # 免费 API 需要延迟以避免速率限制
-            self.random_delay(1.0, 2.0)
+            params_daily['apikey'] = api_key
         
-        # 构建完整 URL（用于重试机制）
-        import urllib.parse
-        query_string = urllib.parse.urlencode(params, doseq=True)
-        full_url = f"{api_url}?{query_string}"
+        query_daily = urllib.parse.urlencode(params_daily, doseq=True)
+        url_daily = f"{api_url}?{query_daily}"
         
-        # 使用带重试的请求方法（168小时数据需要更长timeout）
-        response = self.fetch_with_retry(full_url, max_retries=3, timeout=30)
-        
-        if not response:
-            return None
+        response_daily = self.fetch_with_retry(url_daily, max_retries=3, timeout=30)
+        if not response_daily:
+            # 如果 daily 数据失败，仍然返回 hourly 数据
+            self.log('WARNING', 'Daily 数据采集失败，仅返回 hourly 数据')
+            return data_hourly
         
         try:
-            data = response.json()
-            self.log('INFO', '天气数据采集成功')
-            return data
+            data_daily = response_daily.json()
         except ValueError as e:
-            self.log('ERROR', f'JSON 解析失败: {e}')
-            return None
-        except Exception as e:
-            self.log('ERROR', f'未知错误: {str(e)}')
-            return None
+            self.log('ERROR', f'Daily 数据 JSON 解析失败: {e}')
+            # 返回 hourly 数据
+            return data_hourly
+        
+        # 合并两个响应
+        # 将 daily 数据合并到 hourly 数据中
+        if 'daily' in data_daily:
+            data_hourly['daily'] = data_daily['daily']
+            data_hourly['daily_units'] = data_daily.get('daily_units', {})
+        
+        self.log('INFO', '天气数据采集成功 (4天 hourly + 8天 daily)')
+        return data_hourly
     
     @staticmethod
     def interpolate_temperature_at_elevation(
