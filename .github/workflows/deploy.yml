@@ -47,7 +47,7 @@ jobs:
           pip install -r requirements-api.txt -t package/
           
           # 只复制 API Lambda 需要的文件
-          cp api.py lambda_handler.py config.py db_manager.py models.py package/
+          cp api.py lambda_handler.py config.py db_manager.py models.py share_page.py package/
           cp resorts_config.json package/
           
           # 创建部署包
@@ -112,7 +112,7 @@ jobs:
             --function-name resort-data-api \
             --region ${{ env.AWS_REGION }} || true
           
-          echo "🔧 更新 API Lambda 环境变量 (ADMIN_API_KEY)..."
+          echo "🔧 更新 API Lambda 环境变量 (ADMIN_API_KEY, SUPABASE)..."
           
           # 获取现有环境变量
           EXISTING_ENV=$(aws lambda get-function-configuration \
@@ -123,8 +123,12 @@ jobs:
           
           echo "现有环境变量: $EXISTING_ENV"
           
-          # 使用 jq 添加 ADMIN_API_KEY
-          UPDATED_ENV=$(echo "$EXISTING_ENV" | jq '. + {"ADMIN_API_KEY": "${{ secrets.ADMIN_API_KEY }}"}')
+          # 使用 jq 添加所有需要的环境变量
+          UPDATED_ENV=$(echo "$EXISTING_ENV" | jq \
+            --arg admin_key "${{ secrets.ADMIN_API_KEY }}" \
+            --arg supabase_url "${{ secrets.SUPABASE_URL }}" \
+            --arg supabase_key "${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            '. + {"ADMIN_API_KEY": $admin_key, "SUPABASE_URL": $supabase_url, "SUPABASE_SERVICE_KEY": $supabase_key}')
           
           echo "更新后的环境变量: $UPDATED_ENV"
           
