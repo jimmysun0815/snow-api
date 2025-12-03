@@ -11,9 +11,9 @@
 """
 
 import os
+import requests
 from datetime import datetime
 from flask import Blueprint, Response
-from supabase import create_client, Client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,23 +22,43 @@ load_dotenv()
 share_bp = Blueprint('share', __name__)
 
 # Supabase 配置
-_supabase_client = None
-
-def get_supabase() -> Client:
-    """获取 Supabase 客户端（单例）"""
-    global _supabase_client
-    if _supabase_client is None:
-        supabase_url = os.getenv('SUPABASE_URL')
-        supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
-        if supabase_url and supabase_key:
-            _supabase_client = create_client(supabase_url, supabase_key)
-    return _supabase_client
-
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
 
 # App 下载链接
 APP_STORE_URL = "https://apps.apple.com/app/id6740537880"
 PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.steponsnow.snowapp"
 LOGO_URL = "https://steponsnow.com/assets/logo-1024x1024.jpg"
+
+
+def supabase_get(table: str, select: str = "*", filters: dict = None):
+    """
+    调用 Supabase REST API 查询数据
+    
+    Args:
+        table: 表名
+        select: 选择字段（支持关联查询）
+        filters: 过滤条件，如 {"id": "eq.123"}
+    
+    Returns:
+        查询结果列表
+    """
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        raise Exception("Supabase 配置缺失")
+    
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    headers = {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+    }
+    params = {"select": select}
+    
+    if filters:
+        params.update(filters)
+    
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json()
 
 
 def render_share_page(
@@ -473,37 +493,33 @@ def render_not_found_page(page_type: str) -> str:
 @share_bp.route('/share/carpool/<carpool_id>')
 def share_carpool(carpool_id: str):
     """拼车分享页面"""
-    supabase = get_supabase()
-    
-    if not supabase:
-        return Response(
-            render_not_found_page('carpool'),
-            status=500,
-            mimetype='text/html; charset=utf-8'
-        )
-    
     try:
-        # 获取拼车信息
-        response = supabase.table('carpool_posts').select(
-            '*, user_profiles!carpool_posts_user_id_fkey(nickname)'
-        ).eq('id', carpool_id).maybe_single().execute()
+        # 通过 Supabase REST API 获取拼车信息
+        carpools = supabase_get(
+            table='carpool_posts',
+            select='*, user_profiles!carpool_posts_user_id_fkey(nickname)',
+            filters={'id': f'eq.{carpool_id}'}
+        )
         
-        carpool = response.data
-        
-        if not carpool:
+        if not carpools:
             return Response(
                 render_not_found_page('carpool'),
                 status=404,
                 mimetype='text/html; charset=utf-8'
             )
         
+        carpool = carpools[0]
+        
         # 获取雪场名称
         resort_name = "雪场"
-        resort_response = supabase.table('resorts').select('name').eq(
-            'id', carpool.get('resort_id')
-        ).maybe_single().execute()
-        if resort_response.data:
-            resort_name = resort_response.data.get('name', '雪场')
+        if carpool.get('resort_id'):
+            resorts = supabase_get(
+                table='resorts',
+                select='name',
+                filters={'id': f"eq.{carpool['resort_id']}"}
+            )
+            if resorts:
+                resort_name = resorts[0].get('name', '雪场')
         
         # 解析数据
         departure_date = datetime.fromisoformat(carpool['departure_date'].replace('Z', '+00:00'))
@@ -577,37 +593,33 @@ def share_carpool(carpool_id: str):
 @share_bp.route('/share/accommodation/<accommodation_id>')
 def share_accommodation(accommodation_id: str):
     """拼房分享页面"""
-    supabase = get_supabase()
-    
-    if not supabase:
-        return Response(
-            render_not_found_page('accommodation'),
-            status=500,
-            mimetype='text/html; charset=utf-8'
-        )
-    
     try:
-        # 获取拼房信息
-        response = supabase.table('accommodation_posts').select(
-            '*, user_profiles!accommodation_posts_user_id_fkey(nickname)'
-        ).eq('id', accommodation_id).maybe_single().execute()
+        # 通过 Supabase REST API 获取拼房信息
+        accommodations = supabase_get(
+            table='accommodation_posts',
+            select='*, user_profiles!accommodation_posts_user_id_fkey(nickname)',
+            filters={'id': f'eq.{accommodation_id}'}
+        )
         
-        accommodation = response.data
-        
-        if not accommodation:
+        if not accommodations:
             return Response(
                 render_not_found_page('accommodation'),
                 status=404,
                 mimetype='text/html; charset=utf-8'
             )
         
+        accommodation = accommodations[0]
+        
         # 获取雪场名称
         resort_name = "雪场"
-        resort_response = supabase.table('resorts').select('name').eq(
-            'id', accommodation.get('resort_id')
-        ).maybe_single().execute()
-        if resort_response.data:
-            resort_name = resort_response.data.get('name', '雪场')
+        if accommodation.get('resort_id'):
+            resorts = supabase_get(
+                table='resorts',
+                select='name',
+                filters={'id': f"eq.{accommodation['resort_id']}"}
+            )
+            if resorts:
+                resort_name = resorts[0].get('name', '雪场')
         
         # 解析数据
         check_in_date = datetime.fromisoformat(accommodation['check_in_date'].replace('Z', '+00:00'))
@@ -692,4 +704,3 @@ def share_accommodation(accommodation_id: str):
             status=500,
             mimetype='text/html; charset=utf-8'
         )
-
