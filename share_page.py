@@ -56,7 +56,14 @@ def supabase_get(table: str, select: str = "*", filters: dict = None):
     if filters:
         params.update(filters)
     
+    print(f"🌐 Supabase REST API: GET {url}")
+    print(f"📋 查询参数: {params}")
+    
     response = requests.get(url, headers=headers, params=params)
+    
+    print(f"📡 响应状态码: {response.status_code}")
+    print(f"📊 响应内容: {response.text[:500]}")  # 只打印前500字符
+    
     response.raise_for_status()
     return response.json()
 
@@ -494,14 +501,21 @@ def render_not_found_page(page_type: str) -> str:
 def share_carpool(carpool_id: str):
     """拼车分享页面"""
     try:
-        # 通过 Supabase REST API 获取拼车信息
+        print(f"🔍 查询拼车信息: {carpool_id}")
+        print(f"🔑 SUPABASE_URL: {SUPABASE_URL}")
+        print(f"🔑 SUPABASE_SERVICE_KEY 已配置: {bool(SUPABASE_SERVICE_KEY)}")
+        
+        # 通过 Supabase REST API 获取拼车信息（先不关联查询用户信息）
         carpools = supabase_get(
             table='carpool_posts',
-            select='*, user_profiles!carpool_posts_user_id_fkey(nickname)',
+            select='*',
             filters={'id': f'eq.{carpool_id}'}
         )
         
+        print(f"📊 查询结果数量: {len(carpools) if carpools else 0}")
+        
         if not carpools:
+            print(f"❌ 未找到拼车信息: {carpool_id}")
             return Response(
                 render_not_found_page('carpool'),
                 status=404,
@@ -562,10 +576,19 @@ def share_carpool(carpool_id: str):
         if price:
             detail_lines.append(('💰', f"{currency_symbol}{int(price)}/座"))
         
-        # 发布者
-        user_profile = carpool.get('user_profiles')
-        if user_profile and user_profile.get('nickname'):
-            detail_lines.append(('👤', f"发布者: {user_profile['nickname']}"))
+        # 发布者（单独查询）
+        try:
+            user_id = carpool.get('user_id')
+            if user_id:
+                users = supabase_get(
+                    table='user_profiles',
+                    select='nickname',
+                    filters={'user_id': f'eq.{user_id}'}
+                )
+                if users and users[0].get('nickname'):
+                    detail_lines.append(('👤', f"发布者: {users[0]['nickname']}"))
+        except Exception as e:
+            print(f"⚠️ 获取用户信息失败: {e}")
         
         html = render_share_page(
             page_type='carpool',
@@ -594,14 +617,19 @@ def share_carpool(carpool_id: str):
 def share_accommodation(accommodation_id: str):
     """拼房分享页面"""
     try:
-        # 通过 Supabase REST API 获取拼房信息
+        print(f"🔍 查询拼房信息: {accommodation_id}")
+        
+        # 通过 Supabase REST API 获取拼房信息（先不关联查询用户信息）
         accommodations = supabase_get(
             table='accommodation_posts',
-            select='*, user_profiles!accommodation_posts_user_id_fkey(nickname)',
+            select='*',
             filters={'id': f'eq.{accommodation_id}'}
         )
         
+        print(f"📊 查询结果数量: {len(accommodations) if accommodations else 0}")
+        
         if not accommodations:
+            print(f"❌ 未找到拼房信息: {accommodation_id}")
             return Response(
                 render_not_found_page('accommodation'),
                 status=404,
@@ -678,10 +706,19 @@ def share_accommodation(accommodation_id: str):
         if price:
             detail_lines.append(('💰', f"{currency_symbol}{int(price)}/床位"))
         
-        # 发布者
-        user_profile = accommodation.get('user_profiles')
-        if user_profile and user_profile.get('nickname'):
-            detail_lines.append(('👤', f"发布者: {user_profile['nickname']}"))
+        # 发布者（单独查询）
+        try:
+            user_id = accommodation.get('user_id')
+            if user_id:
+                users = supabase_get(
+                    table='user_profiles',
+                    select='nickname',
+                    filters={'user_id': f'eq.{user_id}'}
+                )
+                if users and users[0].get('nickname'):
+                    detail_lines.append(('👤', f"发布者: {users[0]['nickname']}"))
+        except Exception as e:
+            print(f"⚠️ 获取用户信息失败: {e}")
         
         html = render_share_page(
             page_type='accommodation',
