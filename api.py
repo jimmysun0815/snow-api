@@ -6,6 +6,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from db_manager import DatabaseManager
+from share_page import share_bp
 from datetime import datetime
 import math
 import json
@@ -13,6 +14,9 @@ import os
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS，允许跨域请求
+
+# 注册分享页面 Blueprint
+app.register_blueprint(share_bp)
 
 # 初始化数据库管理器
 try:
@@ -503,6 +507,10 @@ if __name__ == '__main__':
     print("  雪道数据:")
     print("    GET /api/resorts/<id>/trails          - 获取雪场雪道（按ID）")
     print("    GET /api/resorts/slug/<slug>/trails   - 获取雪场雪道（按slug）")
+    print()
+    print("  分享页面（微信/社交分享）:")
+    print("    GET /share/carpool/<id>               - 拼车分享页面")
+    print("    GET /share/accommodation/<id>         - 拼房分享页面")
     print()
     print("  系统:")
     print("    GET /api/status                       - 获取系统状态")
