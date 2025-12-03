@@ -3,7 +3,7 @@
 # REST API Service - Provides resort data query endpoints
 # Reads from PostgreSQL + Redis
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from db_manager import DatabaseManager
 from share_page import share_bp
@@ -17,6 +17,58 @@ CORS(app)  # 启用 CORS，允许跨域请求
 
 # 注册分享页面 Blueprint
 app.register_blueprint(share_bp)
+
+# Universal Links - Apple App Site Association
+@app.route('/.well-known/apple-app-site-association')
+@app.route('/apple-app-site-association')
+def apple_app_site_association():
+    """返回 iOS Universal Links 配置文件"""
+    association_data = {
+        "applinks": {
+            "apps": [],
+            "details": [
+                {
+                    "appID": "9W97UAQQ82.com.steponsnow.snowapp",
+                    "paths": [
+                        "/share/carpool/*",
+                        "/share/accommodation/*"
+                    ]
+                }
+            ]
+        },
+        "webcredentials": {
+            "apps": ["9W97UAQQ82.com.steponsnow.snowapp"]
+        }
+    }
+    return Response(
+        json.dumps(association_data, indent=2),
+        mimetype='application/json',
+        headers={'Content-Type': 'application/json'}
+    )
+
+# Android App Links - Digital Asset Links
+@app.route('/.well-known/assetlinks.json')
+def assetlinks():
+    """返回 Android App Links 配置文件"""
+    # TODO: 需要替换为实际的 SHA256 指纹
+    # 获取方式: keytool -list -v -keystore your-release-key.jks -alias your-key-alias
+    assetlinks_data = [
+        {
+            "relation": ["delegate_permission/common.handle_all_urls"],
+            "target": {
+                "namespace": "android_app",
+                "package_name": "com.snowresort.snow_resort_app",
+                "sha256_cert_fingerprints": [
+                    # TODO: 添加你的 SHA256 指纹
+                ]
+            }
+        }
+    ]
+    return Response(
+        json.dumps(assetlinks_data, indent=2),
+        mimetype='application/json',
+        headers={'Content-Type': 'application/json'}
+    )
 
 # 初始化数据库管理器
 try:
