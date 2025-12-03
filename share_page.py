@@ -113,8 +113,7 @@ def render_share_page(
             </div>
         '''
     
-    # 页面类型图标和文字
-    type_icon = "🚗" if page_type == "carpool" else "🏠"
+    # 页面类型文字（不用emoji）
     type_text = "拼车信息" if page_type == "carpool" else "拼房信息"
     
     html = f'''<!DOCTYPE html>
@@ -173,9 +172,16 @@ def render_share_page(
         }}
         
         .app-name {{
-            font-size: 20px;
-            font-weight: 600;
-            color: rgba(255,255,255,0.9);
+            font-size: 22px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            margin-bottom: 4px;
+        }}
+        
+        .app-subtitle {{
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+            font-weight: 400;
         }}
         
         .card {{
@@ -236,8 +242,9 @@ def render_share_page(
         .info-icon {{
             font-size: 16px;
             flex-shrink: 0;
-            width: 20px;
+            width: 0px;
             text-align: center;
+            display: none;
         }}
         
         .open-app-btn {{
@@ -300,6 +307,11 @@ def render_share_page(
             max-width: 160px;
         }}
         
+        .download-btn img {{
+            width: 20px;
+            height: 20px;
+        }}
+        
         .download-btn.ios {{
             background: rgba(255,255,255,0.1);
             color: white;
@@ -336,13 +348,13 @@ def render_share_page(
     <div class="container">
         <div class="header">
             <img src="{LOGO_URL}" alt="逐风" class="logo">
-            <div class="app-name">逐风 Step On</div>
+            <div class="app-name">逐风</div>
+            <div class="app-subtitle">北美滑雪人的必备app</div>
         </div>
         
         <div class="card">
-            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
                 <div class="content-type">
-                    <span>{type_icon}</span>
                     <span>{type_text}</span>
                 </div>
                 {status_html}
@@ -353,13 +365,12 @@ def render_share_page(
             </div>
             
             <a href="{app_scheme_url}" class="open-app-btn">
-                <span>📱</span>
                 <span>在 App 中查看详情</span>
             </a>
         </div>
         
         <div id="wechat-tip" class="wechat-tip" style="display: none;">
-            ⬆️ 点击右上角 <strong>···</strong> 按钮<br>
+            点击右上角 <strong>···</strong> 按钮<br>
             选择 <strong>"在浏览器中打开"</strong><br>
             即可跳转到 App 查看详情
         </div>
@@ -368,11 +379,11 @@ def render_share_page(
             <div class="download-title">还没有安装？立即下载逐风 App</div>
             <div class="download-buttons">
                 <a href="{APP_STORE_URL}" class="download-btn ios" id="ios-download">
-                    <span>🍎</span>
+                    <img src="https://developer.apple.com/assets/elements/icons/app-store/app-store-128x128.png" alt="App Store">
                     <span>App Store</span>
                 </a>
                 <a href="{PLAY_STORE_URL}" class="download-btn android" id="android-download">
-                    <span>🤖</span>
+                    <img src="https://www.gstatic.com/android/market_images/web/play_prism_hlock_2x.png" alt="Google Play" style="height: 20px; width: auto;">
                     <span>Google Play</span>
                 </a>
             </div>
@@ -521,28 +532,28 @@ def share_carpool(carpool_id: str):
         status_text, status_color = status_map.get(status, ('', '#6B7280'))
         
         # 构建标题和描述
-        title = f"🚗 拼车去{resort_name} - {date_str}"
+        title = f"拼车去{resort_name} - {date_str}"
         
         departure = carpool.get('departure_location', '')
         destination = carpool.get('destination_location') or resort_name
         seats = carpool.get('seats_available', 0)
         
-        description = f"📍 {departure} → {destination} | 📅 {date_str}{time_str} | 💺 剩余{seats}个座位"
+        description = f"{departure} → {destination} | {date_str}{time_str} | 剩余{seats}个座位"
         
         # 价格
         price = carpool.get('price_per_seat')
         currency = carpool.get('currency', 'USD')
         currency_symbol = '$' if currency == 'USD' else 'C$'
         
-        # 构建详情行
+        # 构建详情行（不使用emoji）
         detail_lines = [
-            ('📍', f"{departure} → {destination}"),
-            ('📅', f"出发: {date_str}{time_str}"),
-            ('💺', f"剩余 {seats} 个座位"),
+            ('', f"路线: {departure} → {destination}"),
+            ('', f"出发: {date_str}{time_str}"),
+            ('', f"剩余 {seats} 个座位"),
         ]
         
         if price:
-            detail_lines.append(('💰', f"{currency_symbol}{int(price)}/座"))
+            detail_lines.append(('', f"价格: {currency_symbol}{int(price)}/座"))
         
         # 发布者（单独查询）
         try:
@@ -554,7 +565,7 @@ def share_carpool(carpool_id: str):
                     filters={'user_id': f'eq.{user_id}'}
                 )
                 if users and users[0].get('nickname'):
-                    detail_lines.append(('👤', f"发布者: {users[0]['nickname']}"))
+                    detail_lines.append(('', f"发布者: {users[0]['nickname']}"))
         except Exception as e:
             print(f"⚠️ 获取用户信息失败: {e}")
         
@@ -649,30 +660,34 @@ def share_accommodation(accommodation_id: str):
         status_text, status_color = status_map.get(status, ('', '#6B7280'))
         
         # 构建标题和描述
-        title = f"🏠 拼房@{resort_name} - {check_in_str}"
+        title = f"拼房@{resort_name} - {check_in_str}"
         
         beds = accommodation.get('beds_available', 0)
         acc_name = accommodation.get('accommodation_name', '')
         
-        description = f"🏨 {type_text}"
+        description = f"{type_text}"
         if acc_name:
             description += f" {acc_name}"
-        description += f" | 📅 {date_range} | 🛏️ 剩余{beds}床位"
+        description += f" | {date_range} | 剩余{beds}床位"
         
         # 价格
         price = accommodation.get('price_per_bed')
         currency = accommodation.get('currency', 'USD')
         currency_symbol = '$' if currency == 'USD' else 'C$'
         
-        # 构建详情行
+        # 构建详情行（不使用emoji）
+        acc_info = f"{type_text}"
+        if acc_name:
+            acc_info += f" - {acc_name}"
+        
         detail_lines = [
-            ('🏨', f"{type_text}" + (f" - {acc_name}" if acc_name else "")),
-            ('📅', f"入住: {date_range}"),
-            ('🛏️', f"剩余 {beds} 个床位"),
+            ('', acc_info),
+            ('', f"入住: {date_range}"),
+            ('', f"剩余 {beds} 个床位"),
         ]
         
         if price:
-            detail_lines.append(('💰', f"{currency_symbol}{int(price)}/床位"))
+            detail_lines.append(('', f"价格: {currency_symbol}{int(price)}/床位"))
         
         # 发布者（单独查询）
         try:
@@ -684,7 +699,7 @@ def share_accommodation(accommodation_id: str):
                     filters={'user_id': f'eq.{user_id}'}
                 )
                 if users and users[0].get('nickname'):
-                    detail_lines.append(('👤', f"发布者: {users[0]['nickname']}"))
+                    detail_lines.append(('', f"发布者: {users[0]['nickname']}"))
         except Exception as e:
             print(f"⚠️ 获取用户信息失败: {e}")
         
