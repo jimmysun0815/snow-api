@@ -256,10 +256,16 @@ def render_share_page(
             align-items: center;
             justify-content: center;
             gap: 8px;
+            text-decoration: none;
+            box-sizing: border-box;
         }}
         
         .open-app-btn:active {{
             transform: scale(0.98);
+        }}
+        
+        .open-app-btn:visited {{
+            color: white;
         }}
         
         .download-section {{
@@ -313,29 +319,16 @@ def render_share_page(
             font-size: 12px;
         }}
         
-        .loading {{
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            color: rgba(255,255,255,0.7);
+        .wechat-tip {{
+            background: rgba(255, 159, 10, 0.1);
+            border: 1px solid rgba(255, 159, 10, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 16px;
+            color: rgba(255, 159, 10, 0.9);
             font-size: 14px;
-            margin-bottom: 12px;
-        }}
-        
-        .loading.show {{ display: flex; }}
-        
-        .spinner {{
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(139, 92, 246, 0.3);
-            border-top-color: #8B5CF6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }}
-        
-        @keyframes spin {{
-            to {{ transform: rotate(360deg); }}
+            text-align: center;
+            line-height: 1.6;
         }}
     </style>
 </head>
@@ -359,15 +352,16 @@ def render_share_page(
                 {detail_html}
             </div>
             
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <span>正在打开 App...</span>
-            </div>
-            
-            <button class="open-app-btn" id="open-app-btn" onclick="openApp()">
+            <a href="{app_scheme_url}" class="open-app-btn">
                 <span>📱</span>
                 <span>在 App 中查看详情</span>
-            </button>
+            </a>
+        </div>
+        
+        <div id="wechat-tip" class="wechat-tip" style="display: none;">
+            ⬆️ 点击右上角 <strong>···</strong> 按钮<br>
+            选择 <strong>"在浏览器中打开"</strong><br>
+            即可跳转到 App 查看详情
         </div>
         
         <div class="download-section">
@@ -390,52 +384,28 @@ def render_share_page(
     </div>
     
     <script>
-        const appSchemeUrl = "{app_scheme_url}";
-        
-        function getDeviceType() {{
-            const ua = navigator.userAgent || navigator.vendor || window.opera;
-            if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'ios';
-            if (/android/i.test(ua)) return 'android';
-            return 'other';
+        // 检测是否在微信中
+        function isWeChat() {{
+            const ua = navigator.userAgent.toLowerCase();
+            return ua.indexOf('micromessenger') !== -1;
         }}
         
-        function openApp() {{
-            const btn = document.getElementById('open-app-btn');
-            const loading = document.getElementById('loading');
-            
-            btn.style.display = 'none';
-            loading.classList.add('show');
-            
-            const start = Date.now();
-            
-            // 尝试打开 App
-            window.location.href = appSchemeUrl;
-            
-            // 2秒后检查是否还在页面上
-            setTimeout(function() {{
-                const elapsed = Date.now() - start;
-                if (elapsed < 3000) {{
-                    // App 没有打开，显示按钮
-                    loading.classList.remove('show');
-                    btn.style.display = 'flex';
-                    btn.innerHTML = '<span>📥</span><span>下载 App 查看</span>';
-                    btn.onclick = function() {{
-                        const device = getDeviceType();
-                        if (device === 'ios') {{
-                            window.location.href = "{APP_STORE_URL}";
-                        }} else {{
-                            window.location.href = "{PLAY_STORE_URL}";
-                        }}
-                    }};
+        // 如果在微信中，显示提示
+        if (isWeChat()) {{
+            document.addEventListener('DOMContentLoaded', function() {{
+                // 隐藏打开App按钮
+                const btn = document.querySelector('.open-app-btn');
+                if (btn) {{
+                    btn.style.display = 'none';
                 }}
-            }}, 2000);
+                
+                // 显示微信提示
+                const tip = document.getElementById('wechat-tip');
+                if (tip) {{
+                    tip.style.display = 'block';
+                }}
+            }});
         }}
-        
-        // 页面加载后不自动打开，让用户手动点击按钮
-        // 这样Chrome才会允许打开自定义scheme
-        window.onload = function() {{
-            // 不自动打开，等待用户点击
-        }};
     </script>
 </body>
 </html>'''
