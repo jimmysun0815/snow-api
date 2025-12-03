@@ -431,12 +431,10 @@ def render_share_page(
             }}, 2000);
         }}
         
-        // 页面加载后自动尝试打开（仅限移动端）
+        // 页面加载后不自动打开，让用户手动点击按钮
+        // 这样Chrome才会允许打开自定义scheme
         window.onload = function() {{
-            const device = getDeviceType();
-            if (device === 'ios' || device === 'android') {{
-                setTimeout(openApp, 500);
-            }}
+            // 不自动打开，等待用户点击
         }};
     </script>
 </body>

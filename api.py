@@ -50,8 +50,6 @@ def apple_app_site_association():
 @app.route('/.well-known/assetlinks.json')
 def assetlinks():
     """返回 Android App Links 配置文件"""
-    # TODO: 需要替换为实际的 SHA256 指纹
-    # 获取方式: keytool -list -v -keystore your-release-key.jks -alias your-key-alias
     assetlinks_data = [
         {
             "relation": ["delegate_permission/common.handle_all_urls"],
@@ -59,7 +57,7 @@ def assetlinks():
                 "namespace": "android_app",
                 "package_name": "com.snowresort.snow_resort_app",
                 "sha256_cert_fingerprints": [
-                    # TODO: 添加你的 SHA256 指纹
+                    "86:B4:81:BC:A5:E8:4A:C6:97:03:0F:B6:15:B0:3F:78:8E:30:E3:83:1F:67:D9:BE:D9:B3:D4:9F:85:4B:F3:2C"
                 ]
             }
         }
