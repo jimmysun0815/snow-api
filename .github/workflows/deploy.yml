@@ -128,7 +128,8 @@ jobs:
             --arg admin_key "${{ secrets.ADMIN_API_KEY }}" \
             --arg supabase_url "${{ secrets.SUPABASE_URL }}" \
             --arg supabase_key "${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            '. + {"ADMIN_API_KEY": $admin_key, "SUPABASE_URL": $supabase_url, "SUPABASE_SERVICE_KEY": $supabase_key}')
+            --arg supabase_anon_key "${{ secrets.SUPABASE_ANON_KEY }}" \
+            '. + {"ADMIN_API_KEY": $admin_key, "SUPABASE_URL": $supabase_url, "SUPABASE_SERVICE_KEY": $supabase_key, "SUPABASE_ANON_KEY": $supabase_anon_key}')
           
           echo "更新后的环境变量: $UPDATED_ENV"
           

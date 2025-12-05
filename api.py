@@ -11,6 +11,7 @@ from datetime import datetime
 import math
 import json
 import os
+import requests
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS，允许跨域请求
@@ -536,6 +537,164 @@ def admin_delete_resort(resort_id):
         return jsonify({
             'success': False,
             'error': f'禁用失败: {str(e)}'
+        }), 500
+
+
+# ==================== 用户账号管理 API ====================
+
+def verify_supabase_token(token):
+    """
+    验证 Supabase JWT Token 并返回用户信息
+    
+    Args:
+        token: JWT token (从 Authorization header 获取)
+    
+    Returns:
+        (user_id, email) 或 (None, None)
+    """
+    try:
+        supabase_url = os.getenv('SUPABASE_URL')
+        supabase_anon_key = os.getenv('SUPABASE_ANON_KEY')
+        
+        if not supabase_url or not supabase_anon_key:
+            print("❌ Supabase 配置缺失")
+            return None, None
+        
+        # 调用 Supabase Auth API 验证 token
+        url = f"{supabase_url}/auth/v1/user"
+        headers = {
+            "apikey": supabase_anon_key,
+            "Authorization": f"Bearer {token}",
+        }
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            user_data = response.json()
+            return user_data.get('id'), user_data.get('email')
+        else:
+            print(f"⚠️ Token 验证失败: {response.status_code} - {response.text}")
+            return None, None
+    
+    except Exception as e:
+        print(f"❌ Token 验证异常: {e}")
+        return None, None
+
+
+@app.route('/api/users/delete-account', methods=['POST'])
+def delete_user_account():
+    """
+    用户自助删除账号（软删除）
+    
+    功能：
+    1. 将 user_profiles.is_active 设为 false（停用账号）
+    2. 将所有 carpool_posts 和 accommodation_posts 的 status 设为 'cancelled'（隐藏帖子）
+    
+    Headers:
+        Authorization: Bearer <user_jwt_token>
+    
+    Returns:
+        200: 删除成功
+        401: 未授权（token 无效）
+        500: 服务器错误
+    """
+    # 1. 验证 Token
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({
+            'success': False,
+            'error': '缺少 Authorization header'
+        }), 401
+    
+    token = auth_header.replace('Bearer ', '')
+    user_id, email = verify_supabase_token(token)
+    
+    if not user_id:
+        return jsonify({
+            'success': False,
+            'error': 'Token 无效或已过期'
+        }), 401
+    
+    # 2. 执行软删除操作
+    try:
+        supabase_url = os.getenv('SUPABASE_URL')
+        supabase_service_key = os.getenv('SUPABASE_SERVICE_KEY')
+        
+        if not supabase_url or not supabase_service_key:
+            raise Exception("Supabase 配置缺失")
+        
+        headers = {
+            "apikey": supabase_service_key,
+            "Authorization": f"Bearer {supabase_service_key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }
+        
+        # 2.1 停用用户账号
+        update_profile_url = f"{supabase_url}/rest/v1/user_profiles"
+        profile_response = requests.patch(
+            update_profile_url,
+            headers=headers,
+            params={"user_id": f"eq.{user_id}"},
+            json={"is_active": False}
+        )
+        
+        if profile_response.status_code not in [200, 201, 204]:
+            print(f"❌ 更新用户资料失败: {profile_response.status_code} - {profile_response.text}")
+            raise Exception("更新用户资料失败")
+        
+        # 2.2 取消所有拼车帖子
+        update_carpool_url = f"{supabase_url}/rest/v1/carpool_posts"
+        carpool_response = requests.patch(
+            update_carpool_url,
+            headers=headers,
+            params={"user_id": f"eq.{user_id}", "status": f"neq.cancelled"},
+            json={"status": "cancelled", "updated_at": datetime.now().isoformat()}
+        )
+        
+        carpool_count = 0
+        if carpool_response.status_code in [200, 201]:
+            carpool_data = carpool_response.json()
+            carpool_count = len(carpool_data) if isinstance(carpool_data, list) else 0
+        
+        # 2.3 取消所有拼房帖子
+        update_accommodation_url = f"{supabase_url}/rest/v1/accommodation_posts"
+        accommodation_response = requests.patch(
+            update_accommodation_url,
+            headers=headers,
+            params={"user_id": f"eq.{user_id}", "status": f"neq.cancelled"},
+            json={"status": "cancelled", "updated_at": datetime.now().isoformat()}
+        )
+        
+        accommodation_count = 0
+        if accommodation_response.status_code in [200, 201]:
+            accommodation_data = accommodation_response.json()
+            accommodation_count = len(accommodation_data) if isinstance(accommodation_data, list) else 0
+        
+        print(f"✅ 用户账号已删除: user_id={user_id}, email={email}")
+        print(f"   - 停用账号: is_active=False")
+        print(f"   - 取消拼车帖子: {carpool_count} 个")
+        print(f"   - 取消拼房帖子: {accommodation_count} 个")
+        
+        return jsonify({
+            'success': True,
+            'message': '账号已成功删除',
+            'details': {
+                'user_id': user_id,
+                'email': email,
+                'carpool_posts_cancelled': carpool_count,
+                'accommodation_posts_cancelled': accommodation_count
+            }
+        }), 200
+    
+    except Exception as e:
+        print(f"❌ 删除账号失败: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': f'删除失败: {str(e)}'
         }), 500
 
 
