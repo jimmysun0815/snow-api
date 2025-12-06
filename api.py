@@ -19,56 +19,6 @@ CORS(app)  # 启用 CORS，允许跨域请求
 # 注册分享页面 Blueprint
 app.register_blueprint(share_bp)
 
-# Universal Links - Apple App Site Association
-@app.route('/.well-known/apple-app-site-association')
-@app.route('/apple-app-site-association')
-def apple_app_site_association():
-    """返回 iOS Universal Links 配置文件"""
-    association_data = {
-        "applinks": {
-            "apps": [],
-            "details": [
-                {
-                    "appID": "9W97UAQQ82.com.steponsnow.snowapp",
-                    "paths": [
-                        "/share/carpool/*",
-                        "/share/accommodation/*"
-                    ]
-                }
-            ]
-        },
-        "webcredentials": {
-            "apps": ["9W97UAQQ82.com.steponsnow.snowapp"]
-        }
-    }
-    return Response(
-        json.dumps(association_data, indent=2),
-        mimetype='application/json',
-        headers={'Content-Type': 'application/json'}
-    )
-
-# Android App Links - Digital Asset Links
-@app.route('/.well-known/assetlinks.json')
-def assetlinks():
-    """返回 Android App Links 配置文件"""
-    assetlinks_data = [
-        {
-            "relation": ["delegate_permission/common.handle_all_urls"],
-            "target": {
-                "namespace": "android_app",
-                "package_name": "com.snowresort.snow_resort_app",
-                "sha256_cert_fingerprints": [
-                    "86:B4:81:BC:A5:E8:4A:C6:97:03:0F:B6:15:B0:3F:78:8E:30:E3:83:1F:67:D9:BE:D9:B3:D4:9F:85:4B:F3:2C"
-                ]
-            }
-        }
-    ]
-    return Response(
-        json.dumps(assetlinks_data, indent=2),
-        mimetype='application/json',
-        headers={'Content-Type': 'application/json'}
-    )
-
 # 初始化数据库管理器
 try:
     db_manager = DatabaseManager()
