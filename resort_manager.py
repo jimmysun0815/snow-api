@@ -169,7 +169,7 @@ class ResortDataManager:
                         'temp_summit': weather_normalized.get('temp_summit'),
                         'today': weather_normalized.get('today'),
                         'hourly_forecast': weather_normalized.get('hourly_forecast'),
-                        'forecast_7d': weather_normalized.get('forecast_7d'),
+                        'forecast_15d': weather_normalized.get('forecast_15d'),  # 改为 forecast_15d
                         'avg_windspeed_24h': weather_normalized.get('avg_windspeed_24h'),
                         'last_update': weather_normalized.get('last_update')
                     }

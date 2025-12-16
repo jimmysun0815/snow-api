@@ -490,6 +490,96 @@ def admin_delete_resort(resort_id):
         }), 500
 
 
+@app.route('/api/admin/resorts/<int:resort_id>', methods=['PUT'])
+def admin_update_resort(resort_id):
+    """
+    更新雪场基本信息
+    
+    ⚠️ 需要 Admin API Key 认证
+    ✅ 只能更新基本信息（名称、位置、联系方式等）
+    ❌ 不能更新天气、雪况等自动采集的数据
+    
+    Headers:
+        X-Admin-API-Key: 管理员 API Key
+    
+    Body (JSON):
+        {
+            "name": "雪场名称",              # 可选
+            "location": "位置",              # 可选
+            "lat": 39.123,                   # 可选
+            "lon": -106.456,                 # 可选
+            "elevation_min": 2500,           # 可选
+            "elevation_max": 3500,           # 可选
+            "address": "详细地址",           # 可选
+            "city": "城市",                  # 可选
+            "zip_code": "邮编",              # 可选
+            "phone": "电话",                 # 可选
+            "website": "https://..."         # 可选
+        }
+    
+    Returns:
+        200: 更新成功
+        400: 请求参数错误
+        401: 未授权
+        404: 雪场不存在
+        500: 服务器错误
+    """
+    # 验证 API Key
+    is_valid, error_msg = verify_admin_api_key()
+    if not is_valid:
+        return jsonify({
+            'success': False,
+            'error': error_msg
+        }), 401
+    
+    if not db_manager:
+        return jsonify({
+            'success': False,
+            'error': '数据库未连接'
+        }), 500
+    
+    try:
+        # 获取请求数据
+        update_data = request.get_json()
+        
+        if not update_data:
+            return jsonify({
+                'success': False,
+                'error': '请求体为空'
+            }), 400
+        
+        # 调用更新方法
+        result = db_manager.update_resort(resort_id, update_data)
+        
+        print(f"✅ [Admin API] 更新雪场: ID={result['resort_id']}, Name={result['resort_name']}, 更新字段: {result['updated_fields']}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功更新雪场: {result["resort_name"]}',
+            'resort_id': result['resort_id'],
+            'resort_name': result['resort_name'],
+            'updated_fields': result['updated_fields']
+        }), 200
+    
+    except ValueError as e:
+        # 雪场不存在
+        print(f"⚠️  [Admin API] 雪场不存在: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 404
+    
+    except Exception as e:
+        print(f"❌ [Admin API] 更新雪场失败: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': f'更新失败: {str(e)}'
+        }), 500
+
+
 # ==================== 用户账号管理 API ====================
 
 def verify_supabase_token(token):

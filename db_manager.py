@@ -169,7 +169,7 @@ class DatabaseManager:
                     today_temp_max=today.get('temp_max'),
                     today_temp_min=today.get('temp_min'),
                     hourly_forecast=weather_data.get('hourly_forecast'),
-                    forecast_7d=weather_data.get('forecast_7d'),
+                    forecast_7d=weather_data.get('forecast_15d'),  # 从新的 forecast_15d 字段读取
                     source=weather_data.get('source')
                 )
                 session.add(weather)
@@ -323,7 +323,7 @@ class DatabaseManager:
                         'temp_min': latest_weather.today_temp_min
                     },
                     'hourly_forecast': latest_weather.hourly_forecast,
-                    'forecast_7d': latest_weather.forecast_7d,
+                    'forecast_15d': latest_weather.forecast_7d,  # 数据库列名还是 forecast_7d，但API返回为 forecast_15d
                     'last_update': latest_weather.timestamp.isoformat()
                 }
             
@@ -806,6 +806,104 @@ class DatabaseManager:
         """清除雪道缓存"""
         self.redis_client.delete(f"trails:{resort_id}")
         self.redis_client.delete(f"trails:{resort_slug}")
+    
+    def update_resort(self, resort_id: int, update_data: dict) -> dict:
+        """
+        更新雪场基本信息
+        
+        Args:
+            resort_id: 雪场 ID
+            update_data: 要更新的字段 {
+                'name': str,           # 雪场名称
+                'location': str,       # 位置
+                'lat': float,          # 纬度
+                'lon': float,          # 经度
+                'elevation_min': int,  # 最低海拔
+                'elevation_max': int,  # 最高海拔
+                'address': str,        # 地址
+                'city': str,           # 城市
+                'zip_code': str,       # 邮编
+                'phone': str,          # 电话
+                'website': str,        # 网站
+            }
+        
+        Returns:
+            {
+                'resort_id': int,
+                'resort_name': str,
+                'updated_fields': list
+            }
+        
+        Raises:
+            ValueError: 雪场不存在
+        """
+        session = self.Session()
+        
+        try:
+            # 检查雪场是否存在
+            resort = session.query(Resort).filter_by(id=resort_id).first()
+            
+            if not resort:
+                raise ValueError(f'雪场 ID {resort_id} 不存在')
+            
+            # 允许更新的字段列表
+            allowed_fields = [
+                'name', 'location', 'lat', 'lon',
+                'elevation_min', 'elevation_max',
+                'address', 'city', 'zip_code', 'phone', 'website'
+            ]
+            
+            updated_fields = []
+            
+            # 更新字段
+            for field, value in update_data.items():
+                if field not in allowed_fields:
+                    continue
+                
+                # 跳过 None 值（不更新）
+                if value is None:
+                    continue
+                
+                # 获取当前值
+                old_value = getattr(resort, field)
+                
+                # 如果值有变化，则更新
+                if old_value != value:
+                    setattr(resort, field, value)
+                    updated_fields.append(field)
+                    print(f"  📝 {field}: {old_value} → {value}")
+            
+            if updated_fields:
+                # 更新时间戳
+                resort.updated_at = datetime.now()
+                
+                # 提交事务
+                session.commit()
+                print(f"✅ 雪场 {resort.name} (ID={resort_id}) 已更新 {len(updated_fields)} 个字段")
+                
+                # 清除缓存
+                try:
+                    self._invalidate_cache(resort_id, resort.slug)
+                    print(f"✅ 缓存已清除")
+                except Exception as cache_error:
+                    print(f"⚠️  清除缓存失败（不影响主操作）: {cache_error}")
+            else:
+                print(f"ℹ️  雪场 {resort.name} (ID={resort_id}) 无字段更新")
+            
+            return {
+                'resort_id': resort_id,
+                'resort_name': resort.name,
+                'updated_fields': updated_fields
+            }
+        
+        except ValueError:
+            raise
+        except Exception as e:
+            session.rollback()
+            print(f"❌ 更新雪场失败: {e}")
+            raise
+        finally:
+            session.close()
     
     def disable_resort(self, resort_id: int) -> dict:
         """

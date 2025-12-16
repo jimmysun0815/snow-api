@@ -98,7 +98,7 @@ class OpenMeteoCollector(BaseCollector):
             self.log('ERROR', f'Hourly 数据 JSON 解析失败: {e}')
             return None
         
-        # 请求 2：获取 8 天的 daily 数据
+        # 请求 2：获取 16 天的 daily 数据
         params_daily = {
             'latitude': lat,
             'longitude': lon,
@@ -109,13 +109,14 @@ class OpenMeteoCollector(BaseCollector):
                 'temperature_2m_min',
                 'precipitation_sum',
                 'snowfall_sum',
-                'windspeed_10m_max'
+                'windspeed_10m_max',
+                'weathercode'  # 添加天气代码
             ],
             'temperature_unit': 'celsius',
             'windspeed_unit': 'kmh',
             'precipitation_unit': 'mm',
             'timezone': 'auto',
-            'forecast_days': 8  # 8天 daily 数据
+            'forecast_days': 16  # 16天 daily 数据（确保有完整的15天预报）
         }
         
         if api_key:
@@ -143,7 +144,7 @@ class OpenMeteoCollector(BaseCollector):
             data_hourly['daily'] = data_daily['daily']
             data_hourly['daily_units'] = data_daily.get('daily_units', {})
         
-        self.log('INFO', '天气数据采集成功 (4天 hourly + 8天 daily)')
+        self.log('INFO', '天气数据采集成功 (4天 hourly + 16天 daily)')
         return data_hourly
     
     @staticmethod

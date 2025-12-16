@@ -361,43 +361,29 @@ class DataNormalizer:
                     'windspeed_max': daily.get('windspeed_10m_max', [None])[0],
                 }
         
-        # 未来7天预报
-        forecast_7d = []
+        # 未来15天预报
+        forecast_15d = []
         if daily:
             times = daily.get('time', [])
             temps_max = daily.get('temperature_2m_max', [])
             temps_min = daily.get('temperature_2m_min', [])
             snowfall = daily.get('snowfall_sum', [])
             precipitation = daily.get('precipitation_sum', [])
+            daily_weathercodes = daily.get('weathercode', [])  # 直接从 daily 获取
             
-            # 从hourly数据中提取每天的天气代码（取中午12点的）
-            hourly_times = hourly.get('time', [])
-            hourly_weathercodes = hourly.get('weathercode', [])
-            
-            for i in range(min(7, len(times))):
+            for i in range(min(15, len(times))):
                 date = times[i] if i < len(times) else None
                 
-                # 找到该日期中午12点的天气代码
-                weather_code = None
-                if date and hourly_times and hourly_weathercodes:
-                    target_time = f"{date}T12:00"
-                    try:
-                        idx = hourly_times.index(target_time)
-                        weather_code = hourly_weathercodes[idx] if idx < len(hourly_weathercodes) else None
-                    except ValueError:
-                        # 如果找不到12点，就找最接近的时间
-                        for j, t in enumerate(hourly_times):
-                            if t.startswith(date):
-                                weather_code = hourly_weathercodes[j] if j < len(hourly_weathercodes) else None
-                                break
+                # 直接从 daily 数据获取天气代码
+                weather_code = daily_weathercodes[i] if i < len(daily_weathercodes) else None
                 
-                forecast_7d.append({
+                forecast_15d.append({
                     'date': date,
                     'temp_max': temps_max[i] if i < len(temps_max) else None,
                     'temp_min': temps_min[i] if i < len(temps_min) else None,
                     'snowfall': snowfall[i] if i < len(snowfall) else None,
                     'precipitation': precipitation[i] if i < len(precipitation) else None,
-                    'weather_code': weather_code,  # 添加天气代码
+                    'weather_code': weather_code,
                 })
         
         # 风向转换为方位
@@ -433,8 +419,8 @@ class DataNormalizer:
             'today': today_data,
             # 24小时预报
             'hourly_forecast': hourly_forecast,
-            # 7天预报
-            'forecast_7d': forecast_7d,
+            # 15天预报
+            'forecast_15d': forecast_15d,
             # 统计
             'avg_windspeed_24h': avg_windspeed_24h,
             # 元数据
