@@ -430,9 +430,9 @@ jobs:
           
           echo "✅ 上传到 S3 成功"
 
-      - name: Deploy SQS Notification Processor Lambda
+      - name: Deploy SQS Notification Processor Lambda (Dev)
         run: |
-          echo "🚀 部署 SQS Notification Processor Lambda 函数（从 S3）..."
+          echo "🚀 部署 SQS Notification Processor Lambda 函数 (Dev) （从 S3）..."
           
           BUCKET="resort-data-lambda-artifacts-579866932024"
           
@@ -442,7 +442,21 @@ jobs:
             --s3-key "sqs-notification-processor.zip" \
             --region ${{ env.AWS_REGION }}
           
-          echo "✅ SQS Notification Processor Lambda 部署成功"
+          echo "✅ SQS Notification Processor Lambda (Dev) 部署成功"
+
+      - name: Deploy SQS Notification Processor Lambda (Prod)
+        run: |
+          echo "🚀 部署 SQS Notification Processor Lambda 函数 (Prod) （从 S3）..."
+          
+          BUCKET="resort-data-lambda-artifacts-579866932024"
+          
+          aws lambda update-function-code \
+            --function-name resort-data-prod-notification-processor \
+            --s3-bucket "$BUCKET" \
+            --s3-key "sqs-notification-processor.zip" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ SQS Notification Processor Lambda (Prod) 部署成功"
 
       - name: Update Lambda Environment Variables
         run: |
@@ -460,6 +474,10 @@ jobs:
           
           aws lambda wait function-updated \
             --function-name resort-data-sqs-notification-processor \
+            --region ${{ env.AWS_REGION }} || true
+          
+          aws lambda wait function-updated \
+            --function-name resort-data-prod-notification-processor \
             --region ${{ env.AWS_REGION }} || true
           
           echo "✅ 所有 Lambda 函数已就绪"
@@ -543,7 +561,7 @@ jobs:
           sleep 5
           
           # 更新 SQS Notification Processor 环境变量
-          echo "🔧 更新 SQS Notification Processor 环境变量..."
+          echo "🔧 更新 SQS Notification Processor (Dev) 环境变量..."
           
           # 使用 jq 构建 JSON，正确处理换行符
           jq -n \
@@ -564,14 +582,50 @@ jobs:
                 FIREBASE_CLIENT_EMAIL: $firebase_email,
                 FIREBASE_CLIENT_ID: $firebase_client_id
               }
-            }' > env_final.json
+            }' > env_dev_sqs.json
           
           aws lambda update-function-configuration \
             --function-name resort-data-sqs-notification-processor \
-            --environment file://env_final.json \
+            --environment file://env_dev_sqs.json \
             --region ${{ env.AWS_REGION }}
           
-          rm env_final.json
+          rm env_dev_sqs.json
+          
+          echo "✅ SQS Notification Processor (Dev) 环境变量更新完成"
+          echo "⏳ 等待更新完成..."
+          sleep 5
+          
+          # 更新 SQS Notification Processor Prod 环境变量
+          echo "🔧 更新 SQS Notification Processor (Prod) 环境变量..."
+          
+          # 使用 jq 构建 JSON，正确处理换行符
+          jq -n \
+            --arg supabase_url "${{ secrets.PROD_SUPABASE_URL }}" \
+            --arg supabase_key "${{ secrets.PROD_SUPABASE_SERVICE_KEY }}" \
+            --arg firebase_project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --arg firebase_key_id "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" \
+            --arg firebase_key "${{ secrets.FIREBASE_PRIVATE_KEY }}" \
+            --arg firebase_email "${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
+            --arg firebase_client_id "${{ secrets.FIREBASE_CLIENT_ID }}" \
+            '{
+              Variables: {
+                SUPABASE_URL: $supabase_url,
+                SUPABASE_SERVICE_KEY: $supabase_key,
+                FIREBASE_PROJECT_ID: $firebase_project,
+                FIREBASE_PRIVATE_KEY_ID: $firebase_key_id,
+                FIREBASE_PRIVATE_KEY: $firebase_key,
+                FIREBASE_CLIENT_EMAIL: $firebase_email,
+                FIREBASE_CLIENT_ID: $firebase_client_id,
+                BATCH_SIZE: "10"
+              }
+            }' > env_prod_sqs.json
+          
+          aws lambda update-function-configuration \
+            --function-name resort-data-prod-notification-processor \
+            --environment file://env_prod_sqs.json \
+            --region ${{ env.AWS_REGION }}
+          
+          rm env_prod_sqs.json
           
           echo "✅ 所有环境变量更新成功"
 

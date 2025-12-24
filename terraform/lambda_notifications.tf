@@ -1,51 +1,54 @@
 # Lambda Functions for Push Notifications
 
-# 1. Notification Handler Lambda (处理通知队列)
-resource "aws_lambda_function" "notification_handler" {
-  function_name = "${var.project_name}-notification-handler"
-  role          = aws_iam_role.lambda_exec.arn
-  handler       = "notification_handler.lambda_handler"
-  runtime       = var.lambda_runtime
-  timeout       = 60
-  memory_size   = 512
-
-  s3_bucket = aws_s3_bucket.lambda_artifacts.id
-  s3_key    = "notification-handler.zip"
-
-  environment {
-    variables = {
-      DB_HOST     = aws_db_instance.postgresql.address
-      DB_NAME     = var.db_name
-      DB_USER     = var.db_username
-      DB_PASSWORD = var.db_password
-      REDIS_HOST  = aws_elasticache_cluster.redis.cache_nodes[0].address
-      REDIS_PORT  = aws_elasticache_cluster.redis.cache_nodes[0].port
-      
-      # Firebase 配置
-      FIREBASE_PROJECT_ID     = var.firebase_project_id
-      FIREBASE_PRIVATE_KEY_ID = var.firebase_private_key_id
-      FIREBASE_PRIVATE_KEY    = var.firebase_private_key
-      FIREBASE_CLIENT_EMAIL   = var.firebase_client_email
-      FIREBASE_CLIENT_ID      = var.firebase_client_id
-    }
-  }
-
-  vpc_config {
-    subnet_ids         = aws_subnet.private[*].id
-    security_group_ids = [aws_security_group.lambda.id]
-  }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.lambda_vpc,
-    aws_cloudwatch_log_group.notification_handler
-  ]
-}
-
-# CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "notification_handler" {
-  name              = "/aws/lambda/${var.project_name}-notification-handler"
-  retention_in_days = 7
-}
+# ⚠️ 已废弃 - Notification Handler Lambda (旧的轮询队列方式)
+# 现在改用 sqs_realtime_notifications.tf 中的 Webhook 实时推送
+# 保留此配置仅供参考，可以安全删除
+# 
+# resource "aws_lambda_function" "notification_handler" {
+#   function_name = "${var.project_name}-notification-handler"
+#   role          = aws_iam_role.lambda_exec.arn
+#   handler       = "notification_handler.lambda_handler"
+#   runtime       = var.lambda_runtime
+#   timeout       = 60
+#   memory_size   = 512
+#
+#   s3_bucket = aws_s3_bucket.lambda_artifacts.id
+#   s3_key    = "notification-handler.zip"
+#
+#   environment {
+#     variables = {
+#       DB_HOST     = aws_db_instance.postgresql.address
+#       DB_NAME     = var.db_name
+#       DB_USER     = var.db_username
+#       DB_PASSWORD = var.db_password
+#       REDIS_HOST  = aws_elasticache_cluster.redis.cache_nodes[0].address
+#       REDIS_PORT  = aws_elasticache_cluster.redis.cache_nodes[0].port
+#       
+#       # Firebase 配置
+#       FIREBASE_PROJECT_ID     = var.firebase_project_id
+#       FIREBASE_PRIVATE_KEY_ID = var.firebase_private_key_id
+#       FIREBASE_PRIVATE_KEY    = var.firebase_private_key
+#       FIREBASE_CLIENT_EMAIL   = var.firebase_client_email
+#       FIREBASE_CLIENT_ID      = var.firebase_client_id
+#     }
+#   }
+#
+#   vpc_config {
+#     subnet_ids         = aws_subnet.private[*].id
+#     security_group_ids = [aws_security_group.lambda.id]
+#   }
+#
+#   depends_on = [
+#     aws_iam_role_policy_attachment.lambda_vpc,
+#     aws_cloudwatch_log_group.notification_handler
+#   ]
+# }
+#
+# # CloudWatch Log Group
+# resource "aws_cloudwatch_log_group" "notification_handler" {
+#   name              = "/aws/lambda/${var.project_name}-notification-handler"
+#   retention_in_days = 7
+# }
 
 # EventBridge 规则：每分钟运行一次
 # ⚠️ 已禁用 - 现在使用 Supabase Webhook + Lambda Function URL 实时推送
@@ -138,10 +141,11 @@ resource "aws_lambda_permission" "allow_eventbridge_snow" {
 }
 
 # Outputs
-output "notification_handler_function_name" {
-  description = "Notification Handler Lambda function name"
-  value       = aws_lambda_function.notification_handler.function_name
-}
+# ⚠️ 已废弃 - Notification Handler 相关输出
+# output "notification_handler_function_name" {
+#   description = "Notification Handler Lambda function name"
+#   value       = aws_lambda_function.notification_handler.function_name
+# }
 
 output "snow_checker_function_name" {
   description = "Snow Checker Lambda function name"
