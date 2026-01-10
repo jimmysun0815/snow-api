@@ -33,21 +33,34 @@ jobs:
           pip install -r requirements.txt
           pip install supabase python-dotenv
       
-      - name: Run sync script
+      - name: Run sync script (Dev Environment)
         run: |
+          echo "🔄 同步到开发环境 Supabase..."
           python sync_resorts_to_supabase.py
         env:
           # API 地址（使用生产环境 API）
           API_BASE_URL: https://api.steponsnow.com
           
-          # Supabase 连接信息
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          # Supabase 开发环境
+          SUPABASE_URL: ${{ secrets.SUPABASE_DEV_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_DEV_SERVICE_KEY }}
+      
+      - name: Run sync script (Prod Environment)
+        run: |
+          echo "🔄 同步到生产环境 Supabase..."
+          python sync_resorts_to_supabase.py
+        env:
+          # API 地址（使用生产环境 API）
+          API_BASE_URL: https://api.steponsnow.com
+          
+          # Supabase 生产环境
+          SUPABASE_URL: ${{ secrets.SUPABASE_PROD_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_PROD_SERVICE_KEY }}
       
       - name: Notify on success
         if: success()
         run: |
-          echo "✅ 雪场数据同步成功！"
+          echo "✅ 雪场数据同步成功！已同步到开发和生产环境"
           echo "⏰ 同步时间: $(date)"
       
       - name: Notify on failure
