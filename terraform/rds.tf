@@ -70,14 +70,30 @@ resource "aws_db_parameter_group" "postgresql" {
     value = "pg_stat_statements"
   }
 
+  # 日志配置 - 只记录错误和慢查询，减少日志量
   parameter {
     name  = "log_statement"
-    value = "all"
+    value = "none"  # 不记录所有SQL语句（之前是"all"，会产生大量日志）
   }
 
   parameter {
     name  = "log_min_duration_statement"
-    value = "1000"  # 记录超过1秒的查询
+    value = "1000"  # 记录超过1秒的慢查询
+  }
+
+  parameter {
+    name  = "log_min_messages"
+    value = "error"  # 只记录ERROR级别以上的消息
+  }
+
+  parameter {
+    name  = "log_connections"
+    value = "0"  # 关闭连接日志
+  }
+
+  parameter {
+    name  = "log_disconnections"
+    value = "0"  # 关闭断开连接日志
   }
 
   tags = {
@@ -112,5 +128,36 @@ resource "aws_iam_role" "rds_monitoring" {
 resource "aws_iam_role_policy_attachment" "rds_monitoring" {
   role       = aws_iam_role.rds_monitoring.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}
+
+# CloudWatch 日志保留期配置
+resource "aws_cloudwatch_log_group" "rds_postgresql" {
+  name              = "/aws/rds/instance/${var.project_name}-postgres/postgresql"
+  retention_in_days = 7  # 保留7天，减少存储成本
+
+  tags = {
+    Name        = "${var.project_name}-rds-postgresql-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "rds_upgrade" {
+  name              = "/aws/rds/instance/${var.project_name}-postgres/upgrade"
+  retention_in_days = 7  # 保留7天
+
+  tags = {
+    Name        = "${var.project_name}-rds-upgrade-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "rds_os_metrics" {
+  name              = "RDSOSMetrics"
+  retention_in_days = 7  # 从30天改为7天，进一步减少存储
+
+  tags = {
+    Name        = "${var.project_name}-rds-os-metrics"
+    Environment = var.environment
+  }
 }
 
