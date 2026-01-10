@@ -9,13 +9,11 @@
       "lon": -119.0326,
       "elevation_min": 2424,
       "elevation_max": 3369,
-      "data_source": "mtnpowder",
-      "source_id": "60",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/california/mammoth-mountain-ski-area/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "使用 MtnPowder API",
-      "onthesnow_url": "https://www.onthesnow.com/california/mammoth-mountain/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 2,
@@ -71,13 +69,11 @@
       "lon": -72.9079,
       "elevation_min": 582,
       "elevation_max": 1185,
-      "data_source": "mtnpowder",
-      "source_id": "1",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/vermont/stratton-mountain/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 佛蒙特州",
-      "onthesnow_url": "https://www.onthesnow.com/vermont/stratton/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 6,
@@ -88,11 +84,11 @@
       "lon": -79.9934,
       "elevation_min": 1102,
       "elevation_max": 1478,
-      "data_source": "mtnpowder",
-      "source_id": "2",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/west-virginia/snowshoe-mountain-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 西弗吉尼亚州"
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 7,
@@ -103,13 +99,11 @@
       "lon": -75.6071,
       "elevation_min": 183,
       "elevation_max": 536,
-      "data_source": "mtnpowder",
-      "source_id": "3",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/pennsylvania/blue-mountain/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 宾夕法尼亚州",
-      "onthesnow_url": "https://www.onthesnow.com/pennsylvania/blue-mountain/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 8,
@@ -120,13 +114,11 @@
       "lon": -74.591,
       "elevation_min": 265,
       "elevation_max": 875,
-      "data_source": "mtnpowder",
-      "source_id": "4",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/quebec/tremblant/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 魁北克",
-      "onthesnow_url": "https://www.onthesnow.com/quebec/tremblant/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 9,
@@ -137,13 +129,11 @@
       "lon": -105.7625,
       "elevation_min": 2743,
       "elevation_max": 3676,
-      "data_source": "mtnpowder",
-      "source_id": "5",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/colorado/winter-park-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 科罗拉多州",
-      "onthesnow_url": "https://www.onthesnow.com/colorado/winter-park/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 10,
@@ -154,13 +144,11 @@
       "lon": -72.9017,
       "elevation_min": 305,
       "elevation_max": 1244,
-      "data_source": "mtnpowder",
-      "source_id": "70",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/vermont/sugarbush/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 佛蒙特州",
-      "onthesnow_url": "https://www.onthesnow.com/vermont/sugarbush/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 20,
@@ -531,13 +519,11 @@
       "lon": -116.9117,
       "elevation_min": 2134,
       "elevation_max": 2743,
-      "data_source": "mtnpowder",
-      "source_id": "57",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/california/bear-mountain/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 南加州 Big Bear 区域",
-      "onthesnow_url": "https://www.onthesnow.com/california/bear-mountain-ca/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 101,
@@ -548,13 +534,11 @@
       "lon": -116.8899,
       "elevation_min": 2103,
       "elevation_max": 2713,
-      "data_source": "mtnpowder",
-      "source_id": "58",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/california/snow-summit/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 南加州 Big Bear 区域",
-      "onthesnow_url": "https://www.onthesnow.com/california/snow-summit/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 102,
@@ -565,13 +549,11 @@
       "lon": -119.0778,
       "elevation_min": 2590,
       "elevation_max": 3095,
-      "data_source": "mtnpowder",
-      "source_id": "59",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/california/june-mountain/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - Mammoth 附近",
-      "onthesnow_url": "https://www.onthesnow.com/california/june-mountain/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 103,
@@ -582,13 +564,11 @@
       "lon": -111.5913,
       "elevation_min": 2418,
       "elevation_max": 3206,
-      "data_source": "mtnpowder",
-      "source_id": "65",
+      "data_source": "onthesnow",
+      "source_url": "https://www.onthesnow.com/utah/solitude-mountain-resort/skireport",
       "enabled": true,
       "update_interval": 10800,
-      "notes": "MtnPowder - 犹他州 Big Cottonwood Canyon",
-      "onthesnow_url": "https://www.onthesnow.com/utah/solitude-utah/skireport",
-      "onthesnow_enabled": true
+      "notes": "使用 OnTheSnow 数据源"
     },
     {
       "id": 200,
