@@ -285,6 +285,11 @@ class DataNormalizer:
         if snowfalls and len(snowfalls) >= 24:
             snowfall_24h = round(sum(snowfalls[:24]), 1)  # cm
         
+        # 未来48小时降雪量总和
+        snowfall_48h = None
+        if snowfalls and len(snowfalls) >= 48:
+            snowfall_48h = round(sum(snowfalls[:48]), 1)  # cm
+        
         # 未来24小时降水量总和
         precipitation_24h = None
         if precipitations and len(precipitations) >= 24:
@@ -414,6 +419,7 @@ class DataNormalizer:
             'temp_summit': current_temp_summit,
             # 降雪量和降水量预测
             'snowfall_24h': snowfall_24h,  # 未来24小时降雪量总和 (cm)
+            'snowfall_48h': snowfall_48h,  # 未来48小时降雪量总和 (cm)
             'precipitation_24h': precipitation_24h,  # 未来24小时降水量总和 (mm)
             # 今日数据
             'today': today_data,

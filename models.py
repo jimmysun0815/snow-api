@@ -68,6 +68,7 @@ class ResortCondition(Base):
     # 雪况
     new_snow = Column(Float, default=0)  # 24h新雪 (cm)
     base_depth = Column(Float, default=0)  # 雪底深度 (cm)
+    snow_depth_summit = Column(Float)  # 山顶积雪深度 (cm)
     
     # 设施
     lifts_open = Column(Integer, default=0)
@@ -129,6 +130,9 @@ class ResortWeather(Base):
     # 预报数据 (JSON)
     hourly_forecast = Column(JSON)  # 24小时预报（包含分层温度）
     forecast_7d = Column(JSON)  # 7天预报
+    
+    # 降雪预测
+    snowfall_48h = Column(Float)  # 未来48小时降雪预测 (cm)
     
     # 元数据
     source = Column(String(100))

@@ -127,6 +127,7 @@ class DatabaseManager:
                 status=normalized_data.get('status'),
                 new_snow=normalized_data.get('new_snow', 0),
                 base_depth=normalized_data.get('base_depth', 0),
+                snow_depth_summit=normalized_data.get('snow_summit'),
                 lifts_open=normalized_data.get('lifts_open', 0),
                 lifts_total=normalized_data.get('lifts_total', 0),
                 trails_open=normalized_data.get('trails_open', 0),
@@ -170,6 +171,7 @@ class DatabaseManager:
                     today_temp_min=today.get('temp_min'),
                     hourly_forecast=weather_data.get('hourly_forecast'),
                     forecast_7d=weather_data.get('forecast_15d'),  # 从新的 forecast_15d 字段读取
+                    snowfall_48h=weather_data.get('snowfall_48h'),
                     source=weather_data.get('source')
                 )
                 session.add(weather)
@@ -195,6 +197,52 @@ class DatabaseManager:
             return False
         finally:
             session.close()  # 确保关闭 session
+    
+    def calculate_past_48h_snowfall(self, resort_id: int) -> Optional[float]:
+        """
+        计算过去48小时的总降雪量
+        
+        方案：取最新记录的24h + 24小时前记录的24h
+        
+        Args:
+            resort_id: 雪场ID
+            
+        Returns:
+            过去48小时总降雪量(cm)，如果数据不足返回None
+        """
+        from datetime import timedelta
+        
+        try:
+            # 获取最新记录
+            latest = self.session.query(ResortCondition).filter_by(
+                resort_id=resort_id
+            ).order_by(desc(ResortCondition.timestamp)).first()
+            
+            if not latest or latest.new_snow is None:
+                return None
+            
+            # 获取24小时前的记录（容忍±3小时误差）
+            time_24h_ago = latest.timestamp - timedelta(hours=24)
+            time_window_start = time_24h_ago - timedelta(hours=3)
+            time_window_end = time_24h_ago + timedelta(hours=3)
+            
+            record_24h_ago = self.session.query(ResortCondition).filter(
+                ResortCondition.resort_id == resort_id,
+                ResortCondition.timestamp >= time_window_start,
+                ResortCondition.timestamp <= time_window_end
+            ).order_by(desc(ResortCondition.timestamp)).first()
+            
+            if not record_24h_ago or record_24h_ago.new_snow is None:
+                # 如果没有24小时前的数据，只返回最新的24h
+                return latest.new_snow
+            
+            # 累加两个24小时
+            total_48h = latest.new_snow + record_24h_ago.new_snow
+            return round(total_48h, 1)
+            
+        except Exception as e:
+            print(f"[ERROR] 计算48h降雪失败 (resort_id={resort_id}): {e}")
+            return None
     
     def get_latest_resort_data(self, resort_id: int = None, resort_slug: str = None) -> Optional[Dict]:
         """
@@ -271,6 +319,9 @@ class DatabaseManager:
             
             # 添加雪况数据
             if latest_condition:
+                # 计算过去48h降雪
+                past_48h_snowfall = self.calculate_past_48h_snowfall(resort.id)
+                
                 # 获取开放日期
                 opening_date = latest_condition.extra_data.get('opening_date') if latest_condition.extra_data else None
                 
@@ -281,10 +332,10 @@ class DatabaseManager:
                     'status': calculated_status,  # 使用计算后的状态
                     'new_snow': latest_condition.new_snow,
                     'new_snow_24h': latest_condition.new_snow,
-                    'new_snow_48h': latest_condition.extra_data.get('new_snow_48h') if latest_condition.extra_data else None,
+                    'new_snow_48h': past_48h_snowfall,
                     'base_depth': latest_condition.base_depth,
                     'snow_depth_base': latest_condition.base_depth,
-                    'snow_depth_summit': latest_condition.extra_data.get('summit_depth') if latest_condition.extra_data else None,
+                    'snow_depth_summit': latest_condition.snow_depth_summit,
                     'lifts_open': latest_condition.lifts_open,
                     'lifts_total': latest_condition.lifts_total,
                     'trails_open': latest_condition.trails_open,
@@ -324,6 +375,7 @@ class DatabaseManager:
                     },
                     'hourly_forecast': latest_weather.hourly_forecast,
                     'forecast_15d': latest_weather.forecast_7d,  # 数据库列名还是 forecast_7d，但API返回为 forecast_15d
+                    'snowfall_48h': latest_weather.snowfall_48h,
                     'last_update': latest_weather.timestamp.isoformat()
                 }
             
