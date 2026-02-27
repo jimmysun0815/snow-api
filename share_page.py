@@ -26,8 +26,8 @@ SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
 
 # App 下载链接
-APP_STORE_URL = "https://apps.apple.com/app/id6740537880"
-PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.steponsnow.snowapp"
+APP_STORE_URL = "https://apps.apple.com/app/%E9%80%90%E9%A3%8E/id6754859759"
+PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.snowresort.snow_resort_app"
 LOGO_URL = "https://steponsnow.com/assets/logo-1024x1024.jpg"
 
 
@@ -75,30 +75,33 @@ def render_share_page(
     description: str,
     detail_lines: list,
     status_text: str = None,
-    status_color: str = "#10B981"
+    status_color: str = "#10B981",
+    type_label: str = None,
 ) -> str:
     """
     渲染分享页面 HTML
     
     Args:
-        page_type: 'carpool' 或 'accommodation'
+        page_type: 'carpool' / 'accommodation' / 'news'
         item_id: 帖子 ID
         title: 页面标题（用于 OG 标签）
         description: 页面描述（用于 OG 标签）
         detail_lines: 详情行列表，每行是 (icon, text) 元组
         status_text: 状态文本（如"招募中"）
         status_color: 状态颜色
+        type_label: 可选，覆盖左上角类型标签（如新闻页传雪场名，不传则用默认）
     """
     
     # 构建 Deep Link
     app_scheme_url = f"steponsnow://{page_type}/{item_id}"
     page_url = f"https://steponsnow.com/share/{page_type}/{item_id}"
     
-    # 构建详情 HTML
+    # 构建详情 HTML（新闻类型第一行加 content-title 样式）
     detail_html = ""
-    for icon, text in detail_lines:
+    for i, (icon, text) in enumerate(detail_lines):
+        row_class = " info-row-title" if (page_type == "news" and i == 0) else ""
         detail_html += f'''
-            <div class="info-row">
+            <div class="info-row{row_class}">
                 <span class="info-icon">{icon}</span>
                 <span>{text}</span>
             </div>
@@ -114,8 +117,9 @@ def render_share_page(
         '''
     
     type_map = {"carpool": "拼车信息", "accommodation": "拼房信息", "news": "雪场新闻"}
-    type_text = type_map.get(page_type, "详情")
-    
+    type_text = type_label if type_label is not None else type_map.get(page_type, "详情")
+    content_type_html = f'<div class="content-type"><span>{type_text}</span></div>' if type_text else ''
+
     html = f'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -238,6 +242,7 @@ def render_share_page(
         }}
         
         .info-row:last-child {{ margin-bottom: 0; }}
+        .info-row.info-row-title {{ font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; }}
         
         .info-icon {{
             font-size: 16px;
@@ -354,9 +359,7 @@ def render_share_page(
         
         <div class="card">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                <div class="content-type">
-                    <span>{type_text}</span>
-                </div>
+                {content_type_html}
                 {status_html}
             </div>
             
@@ -384,7 +387,6 @@ def render_share_page(
                 </a>
                 <a href="{PLAY_STORE_URL}" class="download-btn android" id="android-download">
                     <img src="https://www.gstatic.com/android/market_images/web/play_prism_hlock_2x.png" alt="Google Play" style="height: 20px; width: auto;">
-                    <span>Google Play</span>
                 </a>
             </div>
         </div>
@@ -766,7 +768,8 @@ def share_news(news_id: str):
         title = f"{resort_name} - {news_title}" if resort_name else news_title
         description = content[:150].replace('\n', ' ')
 
-        detail_lines = [('', content[:300])]
+        # 前面显示雪场名（type_label），正文区显示标题 + 详情
+        detail_lines = [('', news_title), ('', content[:500])]
 
         html = render_share_page(
             page_type='news',
@@ -774,6 +777,7 @@ def share_news(news_id: str):
             title=title,
             description=description,
             detail_lines=detail_lines,
+            type_label=resort_name or '',
         )
 
         return Response(html, mimetype='text/html; charset=utf-8')
