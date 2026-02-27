@@ -113,8 +113,8 @@ def render_share_page(
             </div>
         '''
     
-    # 页面类型文字（不用emoji）
-    type_text = "拼车信息" if page_type == "carpool" else "拼房信息"
+    type_map = {"carpool": "拼车信息", "accommodation": "拼房信息", "news": "雪场新闻"}
+    type_text = type_map.get(page_type, "详情")
     
     html = f'''<!DOCTYPE html>
 <html lang="zh-CN">
@@ -426,7 +426,8 @@ def render_share_page(
 
 def render_not_found_page(page_type: str) -> str:
     """渲染 404 页面"""
-    type_text = "拼车" if page_type == "carpool" else "拼房"
+    not_found_map = {"carpool": "拼车", "accommodation": "拼房", "news": "新闻"}
+    type_text = not_found_map.get(page_type, "相关")
     
     return f'''<!DOCTYPE html>
 <html lang="zh-CN">
@@ -721,6 +722,68 @@ def share_accommodation(accommodation_id: str):
         traceback.print_exc()
         return Response(
             render_not_found_page('accommodation'),
+            status=500,
+            mimetype='text/html; charset=utf-8'
+        )
+
+
+@share_bp.route('/share/news/<news_id>')
+def share_news(news_id: str):
+    """新闻分享页面"""
+    try:
+        news_list = supabase_get(
+            table='resort_news',
+            select='*',
+            filters={'id': f'eq.{news_id}', 'is_enabled': 'eq.true'}
+        )
+
+        if not news_list:
+            return Response(
+                render_not_found_page('news'),
+                status=404,
+                mimetype='text/html; charset=utf-8'
+            )
+
+        news = news_list[0]
+
+        resort_name = None
+        resort_id = news.get('resort_id')
+        if resort_id:
+            try:
+                resorts = supabase_get(
+                    table='resorts',
+                    select='name',
+                    filters={'id': f'eq.{resort_id}'}
+                )
+                if resorts:
+                    resort_name = resorts[0].get('name')
+            except Exception:
+                pass
+
+        news_title = news.get('title', '')
+        content = news.get('content', '')
+
+        title = f"{resort_name} - {news_title}" if resort_name else news_title
+        description = content[:150].replace('\n', ' ')
+
+        detail_lines = [('', content[:300])]
+
+        html = render_share_page(
+            page_type='news',
+            item_id=news_id,
+            title=title,
+            description=description,
+            detail_lines=detail_lines,
+        )
+
+        return Response(html, mimetype='text/html; charset=utf-8')
+
+    except Exception as e:
+        print(f"获取新闻信息失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response(
+            render_not_found_page('news'),
             status=500,
             mimetype='text/html; charset=utf-8'
         )
