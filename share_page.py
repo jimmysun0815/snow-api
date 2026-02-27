@@ -367,7 +367,7 @@ def render_share_page(
                 {detail_html}
             </div>
             
-            <a href="{app_scheme_url}" class="open-app-btn">
+            <a href="javascript:void(0)" class="open-app-btn" id="open-app-btn" onclick="openApp()">
                 <span>在 App 中查看详情</span>
             </a>
         </div>
@@ -397,26 +397,41 @@ def render_share_page(
     </div>
     
     <script>
-        // 检测是否在微信中
+        var appSchemeUrl = '{app_scheme_url}';
+        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        var appStoreUrl = '{APP_STORE_URL}';
+        var playStoreUrl = '{PLAY_STORE_URL}';
+
         function isWeChat() {{
-            const ua = navigator.userAgent.toLowerCase();
-            return ua.indexOf('micromessenger') !== -1;
+            return navigator.userAgent.toLowerCase().indexOf('micromessenger') !== -1;
         }}
-        
-        // 如果在微信中，显示提示
+
+        function openApp() {{
+            if (isWeChat()) return;
+
+            var start = Date.now();
+
+            // 用 iframe 尝试打开自定义 scheme（避免 Safari 报错页面）
+            var iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = appSchemeUrl;
+            document.body.appendChild(iframe);
+
+            setTimeout(function() {{
+                document.body.removeChild(iframe);
+                // 如果超过 1.5 秒还在页面上，说明 App 没打开，跳转应用商店
+                if (Date.now() - start < 2000) {{
+                    window.location.href = isIOS ? appStoreUrl : playStoreUrl;
+                }}
+            }}, 1500);
+        }}
+
         if (isWeChat()) {{
             document.addEventListener('DOMContentLoaded', function() {{
-                // 隐藏打开App按钮
-                const btn = document.querySelector('.open-app-btn');
-                if (btn) {{
-                    btn.style.display = 'none';
-                }}
-                
-                // 显示微信提示
-                const tip = document.getElementById('wechat-tip');
-                if (tip) {{
-                    tip.style.display = 'block';
-                }}
+                var btn = document.getElementById('open-app-btn');
+                if (btn) btn.style.display = 'none';
+                var tip = document.getElementById('wechat-tip');
+                if (tip) tip.style.display = 'block';
             }});
         }}
     </script>
