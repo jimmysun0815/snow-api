@@ -584,41 +584,113 @@ def admin_update_resort(resort_id):
 
 def verify_supabase_token(token):
     """
-    验证 Supabase JWT Token 并返回用户信息
-    
-    Args:
-        token: JWT token (从 Authorization header 获取)
-    
-    Returns:
-        (user_id, email) 或 (None, None)
+    验证 Supabase JWT Token 并返回用户信息。
+    优先用 SUPABASE_JWT_SECRET 本地校验；未配置时再调 Auth API。
     """
-    try:
-        supabase_url = os.getenv('SUPABASE_URL')
-        supabase_anon_key = os.getenv('SUPABASE_ANON_KEY')
-        
-        if not supabase_url or not supabase_anon_key:
-            print("❌ Supabase 配置缺失")
+    if not token or not token.strip():
+        return None, None
+
+    # 1. 本地 JWT 校验（不依赖网络，需在 Supabase 控制台 -> Settings -> API 复制 JWT Secret）
+    jwt_secret = os.getenv('SUPABASE_JWT_SECRET')
+    if jwt_secret:
+        try:
+            import jwt as pyjwt
+            try:
+                payload = pyjwt.decode(
+                    token,
+                    jwt_secret,
+                    audience='authenticated',
+                    algorithms=['HS256'],
+                )
+            except pyjwt.InvalidAudienceError:
+                payload = pyjwt.decode(token, jwt_secret, algorithms=['HS256'])
+            return payload.get('sub'), payload.get('email')
+        except Exception as e:
+            print(f"⚠️ JWT 本地校验失败: {e}")
             return None, None
-        
-        # 调用 Supabase Auth API 验证 token
+
+    # 2. 回退：调 Supabase Auth API 验证
+    try:
+        supabase_url = (os.getenv('SUPABASE_URL') or '').rstrip('/')
+        apikey = os.getenv('SUPABASE_ANON_KEY') or os.getenv('SUPABASE_SERVICE_KEY')
+        if not supabase_url or not apikey:
+            print("❌ Supabase 配置缺失（需 SUPABASE_JWT_SECRET 或 SUPABASE_URL + ANON_KEY/SERVICE_KEY）")
+            return None, None
+
         url = f"{supabase_url}/auth/v1/user"
-        headers = {
-            "apikey": supabase_anon_key,
-            "Authorization": f"Bearer {token}",
-        }
-        
-        response = requests.get(url, headers=headers)
-        
+        response = requests.get(
+            url,
+            headers={"apikey": apikey, "Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
         if response.status_code == 200:
             user_data = response.json()
             return user_data.get('id'), user_data.get('email')
-        else:
-            print(f"⚠️ Token 验证失败: {response.status_code} - {response.text}")
-            return None, None
-    
+        print(f"⚠️ Auth API 验证失败: {response.status_code} - {response.text[:200]}")
+        return None, None
     except Exception as e:
         print(f"❌ Token 验证异常: {e}")
         return None, None
+
+
+def _is_snow_notification_test_allowed():
+    """仅测试/开发环境允许触发雪况通知测试（Flask debug 模式或显式开启）"""
+    return (
+        app.debug
+        or os.environ.get('FLASK_ENV') == 'development'
+        or os.environ.get('SNOW_NOTIFICATION_TEST_ENABLED', '').lower() in ('1', 'true', 'yes')
+    )
+
+
+@app.route('/api/test/snow-notification', methods=['POST'])
+def test_snow_notification():
+    """
+    测试雪况通知：向当前登录用户发送一条模拟降雪推送（仅测试/开发环境可用）。
+    
+    Headers:
+        Authorization: Bearer <supabase_jwt_token>
+    
+    Returns:
+        200: 推送已发送
+        403: 非测试环境，禁止调用
+        401: 未授权
+    """
+    if not _is_snow_notification_test_allowed():
+        return jsonify({
+            'success': False,
+            'error': '此接口仅在测试/开发环境可用（FLASK_ENV=development 或 SNOW_NOTIFICATION_TEST_ENABLED=1）',
+        }), 403
+
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'success': False, 'error': '缺少 Authorization header'}), 401
+
+    token = auth_header.replace('Bearer ', '')
+    user_id, _ = verify_supabase_token(token)
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Token 无效或已过期'}), 401
+
+    try:
+        from push_service import initialize_firebase, send_snow_alert_notification
+        initialize_firebase()
+        send_snow_alert_notification(
+            user_ids=[user_id],
+            resort_name='[测试] 万龙雪场',
+            snow_date='02月20日',
+            snow_amount=5.0,
+        )
+        return jsonify({
+            'success': True,
+            'message': '测试雪况通知已发送，请查看本机推送',
+        }), 200
+    except Exception as e:
+        print(f"❌ 测试雪况通知发送失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+        }), 500
 
 
 @app.route('/api/users/delete-account', methods=['POST'])

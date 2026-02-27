@@ -31,6 +31,15 @@ resource "aws_security_group" "rds" {
     security_groups = [aws_security_group.lambda.id]
   }
 
+  # Jump server 访问（运维/调试用）
+  ingress {
+    description = "from jump server"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.1.0/24"]
+  }
+
   # 临时：允许私有子网访问（用于过渡期间）
   ingress {
     description = "PostgreSQL from private subnets"

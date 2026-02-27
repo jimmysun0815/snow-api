@@ -41,6 +41,9 @@ class Config:
     
     # Open-Meteo API 配置
     OPENMETEO_API_KEY = os.getenv('OPENMETEO_API_KEY', '')  # 付费 API Key（可选）
+
+    # NewsData.io 新闻 API（用于美加滑雪场相关新闻）
+    NEWSDATA_API_KEY = os.getenv('NEWSDATA_API_KEY', '')
     
     @classmethod
     def display(cls):
@@ -53,6 +56,7 @@ class Config:
         print(f"缓存 TTL: {cls.CACHE_TTL} 秒")
         print(f"采集间隔: {cls.DATA_COLLECTION_INTERVAL} 秒")
         print(f"Open-Meteo API Key: {'已设置' if cls.OPENMETEO_API_KEY else '未设置（使用免费版）'}")
+        print(f"NewsData.io API Key: {'已设置' if cls.NEWSDATA_API_KEY else '未设置'}")
         print("=" * 80)
 
 

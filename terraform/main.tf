@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 4.67"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
   
   # 使用本地 Backend（状态文件保存在本地）

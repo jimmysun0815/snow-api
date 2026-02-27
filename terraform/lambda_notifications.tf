@@ -93,6 +93,10 @@ resource "aws_lambda_function" "snow_checker" {
       REDIS_HOST  = aws_elasticache_cluster.redis.cache_nodes[0].address
       REDIS_PORT  = aws_elasticache_cluster.redis.cache_nodes[0].port
       
+      # Supabase 配置（订阅、device_tokens、通知日志）
+      SUPABASE_URL         = var.supabase_url
+      SUPABASE_SERVICE_KEY = var.supabase_service_key
+      
       # Firebase 配置
       FIREBASE_PROJECT_ID     = var.firebase_project_id
       FIREBASE_PRIVATE_KEY_ID = var.firebase_private_key_id

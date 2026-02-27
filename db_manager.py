@@ -518,10 +518,10 @@ class DatabaseManager:
                 
                 summary_list.append(summary)
             
-            # 3. 存入 Redis 缓存（缓存时间可以更短，比如10分钟）
+            # 3. 存入 Redis 缓存（1 小时，由定时预热保持有效）
             self.redis_client.setex(
                 cache_key,
-                600,  # 10分钟缓存
+                3600,  # 1 小时
                 json.dumps(summary_list, ensure_ascii=False)
             )
             

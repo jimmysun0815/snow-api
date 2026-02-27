@@ -53,3 +53,4 @@ lambda_package/
 # 临时文件
 *.tmp
 *.bak
+daily_report/
