@@ -324,16 +324,11 @@ jobs:
         run: |
           echo "📦 构建 SQS Notification Processor Lambda 包..."
           
-          # 创建临时目录
           mkdir -p package-sqs
-          
-          # 复制代码
           cp sqs_notification_processor.py push_service.py package-sqs/
-          
-          # 安装 Lambda 专用依赖
+          # requirements-lambda.txt 中已 pin cryptography==38.0.4，避免 Lambda 上 GLIBC_2.28 缺失
           pip install -r requirements-lambda.txt -t package-sqs/ --upgrade
           
-          # 创建部署包
           cd package-sqs
           zip -r ../sqs-notification-processor.zip .
           cd ..
