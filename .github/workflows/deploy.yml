@@ -299,32 +299,6 @@ jobs:
           
           echo "✅ Contact Collector Lambda 环境变量更新完成"
 
-      - name: Build Notification Handler Lambda
-        run: |
-          echo "📦 构建 Notification Handler Lambda 包..."
-          
-          # 清理并重新创建临时目录
-          rm -rf package-notification
-          mkdir -p package-notification
-          
-          # 复制代码
-          cp notification_handler.py push_service.py package-notification/
-          
-          # 安装依赖
-          pip install -r requirements.txt -t package-notification/ --upgrade
-          
-          # 创建部署包
-          cd package-notification
-          zip -r ../notification-handler.zip .
-          cd ..
-          
-          echo "✅ Notification Handler Lambda 包构建完成"
-          ls -lh notification-handler.zip
-          
-          # 显示包大小
-          SIZE=$(du -h notification-handler.zip | cut -f1)
-          echo "📦 部署包大小: $SIZE"
-
       - name: Build Snow Checker Lambda
         run: |
           echo "📦 构建 Snow Checker Lambda 包..."
@@ -366,31 +340,6 @@ jobs:
           
           echo "✅ SQS Notification Processor Lambda 包构建完成"
           ls -lh sqs-notification-processor.zip
-
-      - name: Upload Notification Handler Lambda to S3
-        run: |
-          echo "☁️ 上传 Notification Handler Lambda 到 S3..."
-          
-          BUCKET="resort-data-lambda-artifacts-579866932024"
-          
-          aws s3 cp notification-handler.zip "s3://${BUCKET}/notification-handler.zip" \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "✅ 上传到 S3 成功"
-
-      - name: Deploy Notification Handler Lambda
-        run: |
-          echo "🚀 部署 Notification Handler Lambda 函数（从 S3）..."
-          
-          BUCKET="resort-data-lambda-artifacts-579866932024"
-          
-          aws lambda update-function-code \
-            --function-name resort-data-notification-handler \
-            --s3-bucket "$BUCKET" \
-            --s3-key "notification-handler.zip" \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "✅ Notification Handler Lambda 部署成功"
 
       - name: Upload Snow Checker Lambda to S3
         run: |
@@ -465,10 +414,6 @@ jobs:
           # 等待所有 Lambda 函数更新完成
           echo "⏳ 等待所有 Lambda 函数就绪..."
           aws lambda wait function-updated \
-            --function-name resort-data-notification-handler \
-            --region ${{ env.AWS_REGION }} || true
-          
-          aws lambda wait function-updated \
             --function-name resort-data-snow-checker \
             --region ${{ env.AWS_REGION }} || true
           
@@ -481,41 +426,6 @@ jobs:
             --region ${{ env.AWS_REGION }} || true
           
           echo "✅ 所有 Lambda 函数已就绪"
-          
-          # 更新 Notification Handler 环境变量
-          echo "🔧 更新 Notification Handler 环境变量..."
-          
-          # 使用 jq 构建 JSON，正确处理换行符
-          jq -n \
-            --arg supabase_url "${{ secrets.SUPABASE_URL }}" \
-            --arg supabase_key "${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            --arg firebase_project "${{ secrets.FIREBASE_PROJECT_ID }}" \
-            --arg firebase_key_id "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" \
-            --arg firebase_key "${{ secrets.FIREBASE_PRIVATE_KEY }}" \
-            --arg firebase_email "${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
-            --arg firebase_client_id "${{ secrets.FIREBASE_CLIENT_ID }}" \
-            '{
-              Variables: {
-                SUPABASE_URL: $supabase_url,
-                SUPABASE_SERVICE_KEY: $supabase_key,
-                FIREBASE_PROJECT_ID: $firebase_project,
-                FIREBASE_PRIVATE_KEY_ID: $firebase_key_id,
-                FIREBASE_PRIVATE_KEY: $firebase_key,
-                FIREBASE_CLIENT_EMAIL: $firebase_email,
-                FIREBASE_CLIENT_ID: $firebase_client_id
-              }
-            }' > env_handler_final.json
-          
-          aws lambda update-function-configuration \
-            --function-name resort-data-notification-handler \
-            --environment file://env_handler_final.json \
-            --region ${{ env.AWS_REGION }}
-          
-          rm env_handler_final.json
-          
-          echo "✅ Notification Handler 环境变量更新完成"
-          echo "⏳ 等待更新完成..."
-          sleep 5
           
           # 更新 Snow Checker 环境变量
           echo "🔧 更新 Snow Checker 环境变量..."
@@ -670,11 +580,12 @@ jobs:
           echo "   AWS Console → CloudWatch Logs"
           echo "   - /aws/lambda/resort-data-api"
           echo "   - /aws/lambda/resort-data-collector"
-          echo "   - /aws/lambda/resort-data-notification-handler"
+          echo "   - /aws/lambda/resort-data-sqs-notification-processor"
+          echo "   - /aws/lambda/resort-data-prod-notification-processor"
           echo "   - /aws/lambda/resort-data-snow-checker"
           echo ""
           echo "🔔 推送通知:"
-          echo "   - Notification Handler: 每分钟检查队列"
+          echo "   - SQS Notification Processor (Dev/Prod): DB 触发器 → Lambda Function URL"
           echo "   - Snow Checker: 每小时检查降雪"
           echo ""
           echo "═══════════════════════════════════════"
