@@ -320,22 +320,23 @@ jobs:
           echo "✅ Snow Checker Lambda 包构建完成"
           ls -lh snow-checker.zip
 
-      - name: Build SQS Notification Processor Lambda
+      - name: Build SQS Notification Processor Lambda (Docker AL2)
         run: |
-          echo "📦 构建 SQS Notification Processor Lambda 包..."
+          echo "📦 在 Amazon Linux 2 容器内构建 SQS Lambda 包（与 Lambda 运行时 glibc 一致）..."
           
           mkdir -p package-sqs
-          cp sqs_notification_processor.py push_service.py package-sqs/
-          # 用约束文件强制 cryptography==38.0.4，防止 firebase-admin 等依赖拉取带 Rust 的新版（Lambda 仅 GLIBC 2.26）
-          pip install -r requirements-lambda.txt -t package-sqs/ -c lambda-constraints.txt --upgrade --force-reinstall --no-cache-dir
-          
-          cd package-sqs
-          zip -r ../sqs-notification-processor.zip .
-          cd ..
+          docker run --rm \
+            -v "${{ github.workspace }}:/var/task" -w /var/task \
+            public.ecr.aws/sam/build-python3.10:latest \
+            bash -c "
+              pip install -r requirements-lambda.txt -t package-sqs/ --upgrade
+              cp sqs_notification_processor.py push_service.py package-sqs/
+              cd package-sqs && zip -r ../sqs-notification-processor.zip .
+            "
           
           echo "✅ SQS Notification Processor Lambda 包构建完成"
           ls -lh sqs-notification-processor.zip
-          echo "📌 验证 cryptography 版本（应为 38.0.4，无 _rust）："
+          echo "📌 验证 bindings（应无 _rust）："
           ls package-sqs/cryptography/hazmat/bindings/ 2>/dev/null || true
 
       - name: Upload Snow Checker Lambda to S3
