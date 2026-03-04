@@ -1,0 +1,2 @@
+# 强制 Lambda 使用兼容 Amazon Linux 2 (GLIBC 2.26) 的 cryptography，避免 Rust 扩展依赖 GLIBC 2.28
+cryptography==38.0.4

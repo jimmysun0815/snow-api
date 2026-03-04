@@ -326,8 +326,8 @@ jobs:
           
           mkdir -p package-sqs
           cp sqs_notification_processor.py push_service.py package-sqs/
-          # requirements-lambda.txt 中已 pin cryptography==38.0.4，避免 Lambda 上 GLIBC_2.28 缺失
-          pip install -r requirements-lambda.txt -t package-sqs/ --upgrade
+          # 用约束文件强制 cryptography==38.0.4，防止 firebase-admin 等依赖拉取带 Rust 的新版（Lambda 仅 GLIBC 2.26）
+          pip install -r requirements-lambda.txt -t package-sqs/ -c lambda-constraints.txt --upgrade --force-reinstall --no-cache-dir
           
           cd package-sqs
           zip -r ../sqs-notification-processor.zip .
@@ -335,6 +335,8 @@ jobs:
           
           echo "✅ SQS Notification Processor Lambda 包构建完成"
           ls -lh sqs-notification-processor.zip
+          echo "📌 验证 cryptography 版本（应为 38.0.4，无 _rust）："
+          ls package-sqs/cryptography/hazmat/bindings/ 2>/dev/null || true
 
       - name: Upload Snow Checker Lambda to S3
         run: |
