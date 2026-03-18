@@ -1,4 +1,4 @@
-# 定时预热 /api/resorts/summary：每小时第 10 分钟请求一次，保持 Redis 缓存有效
+# 定时预热 /api/resorts/summary：每 5 分钟请求一次，保持 API Lambda 实例活跃 + Redis 缓存有效
 
 data "archive_file" "warmup_summary" {
   type        = "zip"
@@ -69,11 +69,11 @@ resource "aws_lambda_function" "warmup_summary" {
   depends_on = [aws_cloudwatch_log_group.warmup_summary]
 }
 
-# EventBridge 规则：每小时第 10 分钟
+# EventBridge 规则：每 5 分钟预热一次，保持主 API Lambda 实例活跃
 resource "aws_cloudwatch_event_rule" "summary_warmup" {
   name                = "${var.project_name}-summary-warmup"
-  description         = "Warm up /api/resorts/summary cache every hour at :10"
-  schedule_expression = "cron(10 * * * ? *)"
+  description         = "Warm up /api/resorts/summary every 5 minutes to reduce cold starts"
+  schedule_expression = "rate(5 minutes)"
 
   tags = {
     Name        = "${var.project_name}-summary-warmup"

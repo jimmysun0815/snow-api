@@ -5,7 +5,7 @@
 import json
 import redis
 from datetime import datetime
-from sqlalchemy import create_engine, desc
+from sqlalchemy import create_engine, desc, func
 from sqlalchemy.orm import sessionmaker, scoped_session
 from typing import List, Dict, Optional
 import threading
@@ -432,6 +432,7 @@ class DatabaseManager:
     def get_all_resorts_summary(self) -> List[Dict]:
         """
         获取所有雪场的摘要信息（轻量级，不含完整天气预报）
+        使用子查询 JOIN 替代 N+1 循环查询，确保即使缓存 miss 也能在几秒内完成。
         
         Returns:
             雪场摘要列表
@@ -444,23 +445,50 @@ class DatabaseManager:
             print("[OK] 从缓存获取所有雪场摘要")
             return json.loads(cached)
         
-        # 2. 从数据库查询
+        # 2. 从数据库查询（3 条 SQL 替代 1+2N 条）
         try:
             resorts = self.session.query(Resort).filter_by(enabled=True).all()
+
+            resort_ids = [r.id for r in resorts]
+            if not resort_ids:
+                return []
+
+            # 子查询：每个 resort 最新 condition 的 id
+            latest_cond_id = (
+                self.session.query(
+                    ResortCondition.resort_id,
+                    func.max(ResortCondition.id).label("max_id"),
+                )
+                .filter(ResortCondition.resort_id.in_(resort_ids))
+                .group_by(ResortCondition.resort_id)
+                .subquery()
+            )
+            conditions_by_resort = {
+                c.resort_id: c
+                for c in self.session.query(ResortCondition)
+                .join(latest_cond_id, ResortCondition.id == latest_cond_id.c.max_id)
+                .all()
+            }
+
+            # 子查询：每个 resort 最新 weather 的 id
+            latest_weather_id = (
+                self.session.query(
+                    ResortWeather.resort_id,
+                    func.max(ResortWeather.id).label("max_id"),
+                )
+                .filter(ResortWeather.resort_id.in_(resort_ids))
+                .group_by(ResortWeather.resort_id)
+                .subquery()
+            )
+            weather_by_resort = {
+                w.resort_id: w
+                for w in self.session.query(ResortWeather)
+                .join(latest_weather_id, ResortWeather.id == latest_weather_id.c.max_id)
+                .all()
+            }
+
             summary_list = []
-            
             for resort in resorts:
-                # 查询最新雪况
-                latest_condition = self.session.query(ResortCondition).filter_by(
-                    resort_id=resort.id
-                ).order_by(desc(ResortCondition.timestamp)).first()
-                
-                # 查询最新天气（只需要当前温度、湿度等基础字段）
-                latest_weather = self.session.query(ResortWeather).filter_by(
-                    resort_id=resort.id
-                ).order_by(desc(ResortWeather.timestamp)).first()
-                
-                # 组装摘要数据（不包含 hourly_forecast 和 forecast_7d）
                 summary = {
                     'id': resort.id,
                     'name': resort.name,
@@ -470,7 +498,6 @@ class DatabaseManager:
                     'lon': resort.lon,
                     'elevation_min': resort.elevation_min,
                     'elevation_max': resort.elevation_max,
-                    # 联系信息和营业时间（静态数据）
                     'address': resort.address,
                     'city': resort.city,
                     'zip_code': resort.zip_code,
@@ -485,17 +512,14 @@ class DatabaseManager:
                     'updated_at': resort.updated_at.isoformat() if resort.updated_at else None,
                 }
                 
-                # 添加雪况信息
+                latest_condition = conditions_by_resort.get(resort.id)
                 if latest_condition:
-                    # 获取开放日期
                     opening_date = latest_condition.extra_data.get('opening_date') if latest_condition.extra_data else None
-                    
-                    # 基于开放日期计算状态（与前端和详情页逻辑一致）
                     calculated_status = calculate_status_by_opening_date(opening_date, latest_condition.status)
                     
                     summary.update({
-                        'status': calculated_status,  # 使用计算后的状态
-                        'opening_date': opening_date,  # 添加开放日期字段供前端使用
+                        'status': calculated_status,
+                        'opening_date': opening_date,
                         'new_snow_24h': latest_condition.new_snow,
                         'base_depth': latest_condition.base_depth,
                         'lifts_open': latest_condition.lifts_open,
@@ -505,7 +529,7 @@ class DatabaseManager:
                         'last_condition_update': latest_condition.timestamp.isoformat(),
                     })
                 
-                # 添加基础天气信息（不含预报）
+                latest_weather = weather_by_resort.get(resort.id)
                 if latest_weather:
                     summary['weather'] = {
                         'temperature': latest_weather.current_temp,
@@ -521,7 +545,7 @@ class DatabaseManager:
             # 3. 存入 Redis 缓存（1 小时，由定时预热保持有效）
             self.redis_client.setex(
                 cache_key,
-                3600,  # 1 小时
+                3600,
                 json.dumps(summary_list, ensure_ascii=False)
             )
             
