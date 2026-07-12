@@ -33,6 +33,47 @@ def _supabase_url():
     return os.environ.get('SUPABASE_URL')
 
 
+def _is_snow_push_enabled():
+    """
+    雪况推送总开关（夏季雪况数据源退订后关闭，冬季再打开）。
+
+    判定优先级:
+      1. 环境变量 SNOW_PUSH_ENABLED=true/false —— 运维强制开关，设了就听它的
+      2. Supabase 未配置（缺 SUPABASE_URL/SUPABASE_SERVICE_KEY）—— 视为关闭，
+         因为没有订阅数据推送本来就无法工作
+      3. Supabase app_settings 表 key='snow_push_enabled' —— App 管理界面可调
+      4. 都没有 → 默认开启
+
+    冬季重新启用步骤: 给本 Lambda 配置 SUPABASE_URL + SUPABASE_SERVICE_KEY
+    环境变量（并确保 app_settings 里没有 snow_push_enabled=false 的行）。
+    """
+    env = os.environ.get('SNOW_PUSH_ENABLED', '').strip().lower()
+    if env in ('true', '1', 'yes'):
+        return True
+    if env in ('false', '0', 'no'):
+        return False
+
+    if not _supabase_url() or not os.environ.get('SUPABASE_SERVICE_KEY'):
+        print("[SKIP] Supabase 未配置（缺 SUPABASE_URL/SUPABASE_SERVICE_KEY），雪况推送视为关闭")
+        return False
+
+    try:
+        url = f'{_supabase_url()}/rest/v1/app_settings'
+        params = {'key': 'eq.snow_push_enabled', 'select': 'value', 'limit': '1'}
+        response = requests.get(url, headers=_supabase_headers(), params=params, timeout=5)
+        response.raise_for_status()
+        rows = response.json()
+        if rows:
+            value = rows[0].get('value')
+            if isinstance(value, str):  # JSONB 里存了字符串 "false" 的情况
+                return value.strip().lower() not in ('false', '0', 'no')
+            return bool(value)
+    except Exception as e:
+        print(f"[WARN] 读取 app_settings.snow_push_enabled 失败，按开启处理: {e}")
+
+    return True
+
+
 def _get_active_subscriptions():
     """Fetch all active resort subscriptions from Supabase, with resort name."""
     url = f'{_supabase_url()}/rest/v1/resort_subscriptions'
@@ -218,6 +259,15 @@ def check_snow_alerts():
 def lambda_handler(event, context):
     """Lambda handler for snow alert checking"""
     try:
+        if not _is_snow_push_enabled():
+            print("[SKIP] 雪况推送开关关闭，跳过本次检查")
+            return {
+                'statusCode': 200,
+                'body': json.dumps({
+                    'message': 'Snow push disabled, check skipped'
+                })
+            }
+
         initialize_firebase()
         check_snow_alerts()
 
