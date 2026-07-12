@@ -378,12 +378,11 @@ def get_status():
     
     if db_manager:
         try:
-            # 测试数据库连接
-            resorts = db_manager.get_all_resorts_data()
-            status['total_resorts'] = len(resorts)
+            # 轻量查询（COUNT + MAX updated_at），避免全表加载导致探活超时
+            status.update(db_manager.get_status_info())
         except:
             status['database'] = 'error'
-    
+
     return jsonify(status)
 
 

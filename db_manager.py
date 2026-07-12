@@ -428,7 +428,26 @@ class DatabaseManager:
         except Exception as e:
             print(f"[ERROR] 查询数据失败: {e}")
             return None
-    
+
+    def get_status_info(self) -> Dict:
+        """
+        轻量系统状态查询（供 /api/status 探活使用）
+        只做 COUNT + MAX 聚合，不加载任何行数据，避免探活请求拖慢或超时
+
+        Returns:
+            {'total_resorts': int, 'last_data_update': str | None}
+        """
+        session = self.session
+        count, last_update = session.query(
+            func.count(Resort.id),
+            func.max(Resort.updated_at)
+        ).one()
+
+        return {
+            'total_resorts': count or 0,
+            'last_data_update': last_update.isoformat() if last_update else None,
+        }
+
     def get_all_resorts_summary(self) -> List[Dict]:
         """
         获取所有雪场的摘要信息（轻量级，不含完整天气预报）

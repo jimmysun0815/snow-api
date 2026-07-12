@@ -299,24 +299,20 @@ jobs:
           
           echo "✅ Contact Collector Lambda 环境变量更新完成"
 
-      - name: Build Snow Checker Lambda
+      - name: Build Snow Checker Lambda (Docker AL2)
         run: |
-          echo "📦 构建 Snow Checker Lambda 包..."
-          
-          # 创建临时目录
+          echo "📦 在 Amazon Linux 2 容器内构建 Snow Checker Lambda 包（与 Lambda 运行时 glibc 一致，避免 cryptography GLIBC_2.28 报错）..."
+
           mkdir -p package-snow
-          
-          # 复制代码
-          cp check_snow_and_notify.py push_service.py package-snow/
-          
-          # 安装依赖
-          pip install -r requirements.txt -t package-snow/ --upgrade
-          
-          # 创建部署包
-          cd package-snow
-          zip -r ../snow-checker.zip .
-          cd ..
-          
+          docker run --rm \
+            -v "${{ github.workspace }}:/var/task" -w /var/task \
+            public.ecr.aws/sam/build-python3.10:latest \
+            bash -c "
+              pip install -r requirements.txt -t package-snow/ --upgrade
+              cp check_snow_and_notify.py push_service.py package-snow/
+              cd package-snow && zip -r ../snow-checker.zip .
+            "
+
           echo "✅ Snow Checker Lambda 包构建完成"
           ls -lh snow-checker.zip
 
