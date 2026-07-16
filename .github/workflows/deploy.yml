@@ -301,17 +301,22 @@ jobs:
 
       - name: Build Snow Checker Lambda (Docker AL2)
         run: |
-          echo "📦 在 Amazon Linux 2 容器内构建 Snow Checker Lambda 包（与 Lambda 运行时 glibc 一致，避免 cryptography GLIBC_2.28 报错）..."
+          echo "📦 在 Amazon Linux 2 容器内构建 Snow Checker Lambda 包（与 Lambda 运行时 glibc 一致）..."
 
           mkdir -p package-snow
           docker run --rm \
             -v "${{ github.workspace }}:/var/task" -w /var/task \
             public.ecr.aws/sam/build-python3.10:latest \
             bash -c "
-              pip install -r requirements.txt -t package-snow/ --upgrade
+              set -e
+              pip install -r requirements-snow-checker.txt -t package-snow/ --upgrade
               cp check_snow_and_notify.py push_service.py package-snow/
-              cd package-snow && zip -r ../snow-checker.zip .
+              cd package-snow && zip -qr ../snow-checker.zip .
             "
+
+          # 防止 pip 静默失败打出空包（2026-07 事故: 空包部署后 import 报错)
+          test -d package-snow/psycopg2 || { echo "❌ 包里缺 psycopg2, pip install 失败了"; exit 1; }
+          test -d package-snow/firebase_admin || { echo "❌ 包里缺 firebase_admin"; exit 1; }
 
           echo "✅ Snow Checker Lambda 包构建完成"
           ls -lh snow-checker.zip
@@ -325,10 +330,14 @@ jobs:
             -v "${{ github.workspace }}:/var/task" -w /var/task \
             public.ecr.aws/sam/build-python3.10:latest \
             bash -c "
+              set -e
               pip install -r requirements-lambda.txt -t package-sqs/ --upgrade
               cp sqs_notification_processor.py push_service.py package-sqs/
-              cd package-sqs && zip -r ../sqs-notification-processor.zip .
+              cd package-sqs && zip -qr ../sqs-notification-processor.zip .
             "
+
+          # 同样防 pip 静默失败
+          test -d package-sqs/firebase_admin || { echo "❌ 包里缺 firebase_admin, pip install 失败了"; exit 1; }
           
           echo "✅ SQS Notification Processor Lambda 包构建完成"
           ls -lh sqs-notification-processor.zip
