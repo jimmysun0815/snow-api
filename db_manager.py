@@ -6,7 +6,9 @@ import json
 import redis
 from datetime import datetime
 from sqlalchemy import create_engine, desc, func
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.pool import NullPool
 from typing import List, Dict, Optional
 import threading
 
@@ -56,29 +58,80 @@ class DatabaseManager:
     def __init__(self):
         """初始化数据库连接和Redis"""
         # PostgreSQL - 使用 scoped_session 实现线程安全
-        self.engine = create_engine(
-            Config.DATABASE_URL, 
-            echo=False, 
-            pool_pre_ping=True,
-            pool_size=20,  # 增加连接池大小以支持并发
-            max_overflow=10
-        )
-        Base.metadata.create_all(self.engine)
+        if Config.USING_SUPABASE_POOLER:
+            # Supabase pooler：连接复用交给 Supavisor，本地不留池
+            self.engine = create_engine(Config.DATABASE_URL, echo=False, poolclass=NullPool)
+        else:
+            self.engine = create_engine(
+                Config.DATABASE_URL,
+                echo=False,
+                pool_pre_ping=True,
+                pool_size=20,  # 增加连接池大小以支持并发
+                max_overflow=10
+            )
+            # 本地 docker Postgres 才自动建表；Supabase 的 schema 由 migrations 管理
+            Base.metadata.create_all(self.engine)
         session_factory = sessionmaker(bind=self.engine)
         self.Session = scoped_session(session_factory)  # 线程安全的 session
-        
-        # Redis
-        self.redis_client = redis.from_url(Config.REDIS_URL, decode_responses=True)
+
+        # Redis（可选）。未启用时 redis_client=None，_cache_* 全部当作未命中 / 跳过
+        self.redis_client = (
+            redis.from_url(Config.REDIS_URL, decode_responses=True)
+            if Config.REDIS_ENABLED else None
+        )
         self.cache_ttl = Config.CACHE_TTL
-        
-        print(f"[OK] 数据库连接成功: {Config.POSTGRES_HOST}:{Config.POSTGRES_PORT}/{Config.POSTGRES_DB}")
-        print(f"[OK] Redis 连接成功: {Config.REDIS_HOST}:{Config.REDIS_PORT}")
-        print(f"[OK] 线程安全模式已启用 (pool_size=20)")
+
+        db_host = make_url(Config.DATABASE_URL).host
+        print(f"[OK] 数据库: {db_host} ({'Supabase pooler, NullPool' if Config.USING_SUPABASE_POOLER else 'pool_size=20'})")
+        print(f"[OK] Redis 缓存: {'启用 ' + Config.REDIS_HOST if self.redis_client else '未启用'}")
     
     @property
     def session(self):
         """获取当前线程的 session"""
         return self.Session()
+
+    # ---------- Redis 缓存降级封装 ----------
+    # Redis 只是加速层。之前各读路径直接调 self.redis_client.get()，
+    # ElastiCache 一抖动就是未捕获异常 -> Flask 500 -> API Gateway 5XX。
+    # 这里统一吞掉 Redis 异常，降级成「未命中 / 不写缓存」，请求继续走数据库。
+
+    def _cache_get_json(self, cache_key: str):
+        """读缓存并反序列化。Redis 不可用或缓存内容损坏时返回 None（当作未命中）"""
+        if self.redis_client is None:
+            return None
+        try:
+            cached = self.redis_client.get(cache_key)
+        except Exception as e:
+            print(f"[WARN] Redis 读取失败，降级查库: {cache_key} - {e}")
+            return None
+
+        if not cached:
+            return None
+
+        try:
+            return json.loads(cached)
+        except (ValueError, TypeError) as e:
+            print(f"[WARN] 缓存内容损坏，降级查库: {cache_key} - {e}")
+            return None
+
+    def _cache_setex(self, cache_key: str, ttl: int, value) -> None:
+        """写缓存。Redis 不可用时跳过，不影响本次响应"""
+        if self.redis_client is None:
+            return
+        try:
+            self.redis_client.setex(cache_key, ttl, json.dumps(value, ensure_ascii=False))
+        except Exception as e:
+            print(f"[WARN] Redis 写入失败，跳过缓存: {cache_key} - {e}")
+
+    def _cache_delete(self, *cache_keys: str) -> None:
+        """删缓存。Redis 不可用时跳过（缓存会在 TTL 到期后自然失效）"""
+        if self.redis_client is None:
+            return
+        for cache_key in cache_keys:
+            try:
+                self.redis_client.delete(cache_key)
+            except Exception as e:
+                print(f"[WARN] Redis 删除失败: {cache_key} - {e}")
     
     def save_resort_data(self, resort_config: Dict, normalized_data: Dict):
         """
@@ -259,10 +312,10 @@ class DatabaseManager:
         cache_key = f"resort:{resort_slug or resort_id}"
         
         # 1. 尝试从 Redis 获取
-        cached = self.redis_client.get(cache_key)
-        if cached:
+        cached = self._cache_get_json(cache_key)
+        if cached is not None:
             print(f"[OK] 从缓存获取: {cache_key}")
-            return json.loads(cached)
+            return cached
         
         # 2. 从数据库查询
         try:
@@ -416,11 +469,7 @@ class DatabaseManager:
                 ]
             
             # 3. 存入 Redis 缓存
-            self.redis_client.setex(
-                cache_key,
-                self.cache_ttl,
-                json.dumps(data, ensure_ascii=False)
-            )
+            self._cache_setex(cache_key, self.cache_ttl, data)
             
             print(f"[DATA] 从数据库获取并缓存: {resort.name}")
             return data
@@ -459,10 +508,10 @@ class DatabaseManager:
         cache_key = "resorts:summary"
         
         # 1. 尝试从 Redis 获取
-        cached = self.redis_client.get(cache_key)
-        if cached:
+        cached = self._cache_get_json(cache_key)
+        if cached is not None:
             print("[OK] 从缓存获取所有雪场摘要")
-            return json.loads(cached)
+            return cached
         
         # 2. 从数据库查询（3 条 SQL 替代 1+2N 条）
         try:
@@ -562,11 +611,7 @@ class DatabaseManager:
                 summary_list.append(summary)
             
             # 3. 存入 Redis 缓存（1 小时，由定时预热保持有效）
-            self.redis_client.setex(
-                cache_key,
-                3600,
-                json.dumps(summary_list, ensure_ascii=False)
-            )
+            self._cache_setex(cache_key, 3600, summary_list)
             
             print(f"[DATA] 从数据库获取 {len(summary_list)} 个雪场摘要并缓存")
             return summary_list
@@ -585,10 +630,10 @@ class DatabaseManager:
         cache_key = "resorts:all"
         
         # 1. 尝试从 Redis 获取
-        cached = self.redis_client.get(cache_key)
-        if cached:
+        cached = self._cache_get_json(cache_key)
+        if cached is not None:
             print("[OK] 从缓存获取所有雪场数据")
-            return json.loads(cached)
+            return cached
         
         # 2. 从数据库查询
         try:
@@ -601,11 +646,7 @@ class DatabaseManager:
                     data_list.append(data)
             
             # 3. 存入 Redis 缓存
-            self.redis_client.setex(
-                cache_key,
-                self.cache_ttl,
-                json.dumps(data_list, ensure_ascii=False)
-            )
+            self._cache_setex(cache_key, self.cache_ttl, data_list)
             
             print(f"[DATA] 从数据库获取 {len(data_list)} 个雪场数据并缓存")
             return data_list
@@ -800,10 +841,10 @@ class DatabaseManager:
         cache_key = f"trails:{resort_slug or resort_id}"
         
         # 1. 尝试从 Redis 获取
-        cached = self.redis_client.get(cache_key)
-        if cached:
+        cached = self._cache_get_json(cache_key)
+        if cached is not None:
             print(f"[OK] 从缓存获取雪道: {cache_key}")
-            return json.loads(cached)
+            return cached
         
         # 2. 从数据库查询
         try:
@@ -840,11 +881,7 @@ class DatabaseManager:
                 })
             
             # 3. 存入 Redis 缓存（雪道数据不常变，缓存1小时）
-            self.redis_client.setex(
-                cache_key,
-                3600,  # 1小时
-                json.dumps(trails_data, ensure_ascii=False)
-            )
+            self._cache_setex(cache_key, 3600, trails_data)  # 1小时
             
             print(f"[DATA] 从数据库获取 {len(trails_data)} 条雪道并缓存")
             return trails_data
@@ -855,9 +892,7 @@ class DatabaseManager:
     
     def _invalidate_cache(self, resort_id: int, resort_slug: str):
         """清除相关缓存"""
-        self.redis_client.delete(f"resort:{resort_id}")
-        self.redis_client.delete(f"resort:{resort_slug}")
-        self.redis_client.delete("resorts:all")
+        self._cache_delete(f"resort:{resort_id}", f"resort:{resort_slug}", "resorts:all")
     
     def _save_webcams(self, session, resort_id: int, webcams: list, source: str):
         """
@@ -899,8 +934,7 @@ class DatabaseManager:
     
     def _invalidate_trails_cache(self, resort_id: int, resort_slug: str):
         """清除雪道缓存"""
-        self.redis_client.delete(f"trails:{resort_id}")
-        self.redis_client.delete(f"trails:{resort_slug}")
+        self._cache_delete(f"trails:{resort_id}", f"trails:{resort_slug}")
     
     def update_resort(self, resort_id: int, update_data: dict) -> dict:
         """
@@ -1157,5 +1191,6 @@ class DatabaseManager:
     def close(self):
         """关闭连接"""
         self.session.close()
-        self.redis_client.close()
+        if self.redis_client is not None:
+            self.redis_client.close()
 

@@ -7,29 +7,24 @@ resource "aws_lambda_function" "trails_collector" {
   s3_bucket = aws_s3_bucket.lambda_artifacts.id
   s3_key    = "trails-collector-lambda.zip"
 
-  handler = "trails_collector_handler.lambda_handler"
-  runtime = var.lambda_runtime
-  timeout = 900  # 15分钟 (雪道采集需要更长时间)
-  memory_size = 2048  # 2GB 内存
+  handler     = "trails_collector_handler.lambda_handler"
+  runtime     = var.lambda_runtime
+  timeout     = 900  # 15分钟 (雪道采集需要更长时间)
+  memory_size = 2048 # 2GB 内存
 
-  # VPC 配置
+  # 已移出 VPC：数据库在 Supabase（公网 + TLS），不再需要 NAT Gateway。
+  # AWS provider 4.x 删掉 vpc_config 块不会真的解绑，必须显式给空列表。
   vpc_config {
-    subnet_ids         = aws_subnet.private[*].id
-    security_group_ids = [aws_security_group.lambda.id]
+    subnet_ids         = []
+    security_group_ids = []
   }
 
   # 环境变量
   environment {
     variables = {
-      POSTGRES_HOST     = aws_db_instance.postgresql.address
-      POSTGRES_PORT     = "5432"
-      POSTGRES_USER     = var.db_username
-      POSTGRES_PASSWORD = var.db_password
-      POSTGRES_DB       = var.db_name
-      REDIS_HOST        = aws_elasticache_cluster.redis.cache_nodes[0].address
-      REDIS_PORT        = "6379"
-      REDIS_DB          = "0"
-      ENVIRONMENT       = var.environment
+      # 不设 REDIS_* = 不走缓存（ElastiCache 已下线）
+      DATABASE_URL = var.database_url
+      ENVIRONMENT  = var.environment
     }
   }
 
@@ -39,9 +34,7 @@ resource "aws_lambda_function" "trails_collector" {
   }
 
   depends_on = [
-    aws_cloudwatch_log_group.trails_collector_lambda,
-    aws_db_instance.postgresql,
-    aws_elasticache_cluster.redis
+    aws_cloudwatch_log_group.trails_collector_lambda
   ]
 }
 

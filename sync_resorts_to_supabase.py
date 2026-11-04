@@ -212,6 +212,12 @@ def sync_to_supabase(resort_data):
 
 def main():
     """主函数"""
+    # ⛔ 2026-11 已废弃：Supabase 的 public.resorts 现在是唯一真源（RDS 已下线）。
+    # 本脚本「先删光 Supabase 全部雪场再重插」，而 resort_conditions / weather /
+    # webcams / trails 对 resorts 是 ON DELETE CASCADE —— 跑一次就清空所有雪况数据。
+    if os.getenv('I_KNOW_THIS_WIPES_RESORT_DATA') != '1':
+        print("⛔ sync_resorts_to_supabase.py 已废弃，见文件内注释。")
+        sys.exit(1)
     print("\n")
     print("=" * 80)
     print("🔄 雪场数据同步工具")
