@@ -150,12 +150,17 @@ def check_snow_alerts():
     print(f"Grouped into {len(resort_subscribers)} resorts")
 
     # --- Step 2: Connect to RDS for weather data ---
-    conn = psycopg2.connect(
-        host=os.environ.get('DB_HOST'),
-        database=os.environ.get('DB_NAME'),
-        user=os.environ.get('DB_USER'),
-        password=os.environ.get('DB_PASSWORD'),
-    )
+    # 2026-11 起数据库在 Supabase（DATABASE_URL = pooler 连接串）；
+    # 没设 DATABASE_URL 时保留旧的 DB_* 变量，兼容本地调试
+    if os.environ.get('DATABASE_URL'):
+        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    else:
+        conn = psycopg2.connect(
+            host=os.environ.get('DB_HOST'),
+            database=os.environ.get('DB_NAME'),
+            user=os.environ.get('DB_USER'),
+            password=os.environ.get('DB_PASSWORD'),
+        )
 
     today = datetime.now().date()
     today_str = today.isoformat()

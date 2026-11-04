@@ -82,7 +82,7 @@ variable "lambda_memory" {
 variable "data_collection_schedule" {
   description = "数据采集 cron 表达式 (UTC)"
   type        = string
-  default     = "cron(0 * * * ? *)"  # 每小时
+  default     = "cron(0 * * * ? *)" # 每小时
 }
 
 # 自定义域名
@@ -147,3 +147,12 @@ variable "aws_profile" {
   default     = ""
 }
 
+
+# 雪场数据库（2026-11 从 AWS RDS 迁到 Supabase Prod）
+# Supabase Dashboard → Connect → Transaction pooler（端口 6543），形如
+# postgresql://postgres.jbucqclsoqcjvnefiyyw:<密码>@aws-0-us-west-2.pooler.supabase.com:6543/postgres
+variable "database_url" {
+  description = "Supabase Prod transaction pooler 连接串（雪场数据）"
+  type        = string
+  sensitive   = true
+}

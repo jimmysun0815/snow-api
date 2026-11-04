@@ -24,7 +24,16 @@ class Config:
         f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}'
     )
     
+    # 连接的是 Supabase 的 Supavisor pooler（2026-11 从 AWS RDS 迁过去）。
+    # Lambda 每个实例自己开连接池 + 外面再套 pooler 会把连接数打满，
+    # 所以这时改用 NullPool（每次借还都直接走 pooler），并且不跑 create_all
+    # （schema 由 app 仓库的 supabase/migrations 管理）。
+    USING_SUPABASE_POOLER = 'pooler.supabase.com' in DATABASE_URL
+
     # Redis 配置
+    # 只有显式配置了 REDIS_URL / REDIS_HOST 才启用缓存（本地 docker-compose 用）。
+    # 线上 ElastiCache 已下线，Lambda 不设这两个变量 = 不走缓存，直接查库。
+    REDIS_ENABLED = bool(os.getenv('REDIS_URL') or os.getenv('REDIS_HOST'))
     REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
     REDIS_PORT = int(os.getenv('REDIS_PORT', 6380))
     REDIS_DB = int(os.getenv('REDIS_DB', 0))

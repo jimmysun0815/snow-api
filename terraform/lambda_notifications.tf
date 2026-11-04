@@ -86,17 +86,12 @@ resource "aws_lambda_function" "snow_checker" {
 
   environment {
     variables = {
-      DB_HOST     = aws_db_instance.postgresql.address
-      DB_NAME     = var.db_name
-      DB_USER     = var.db_username
-      DB_PASSWORD = var.db_password
-      REDIS_HOST  = aws_elasticache_cluster.redis.cache_nodes[0].address
-      REDIS_PORT  = aws_elasticache_cluster.redis.cache_nodes[0].port
-      
+      DATABASE_URL = var.database_url
+
       # Supabase 配置（订阅、device_tokens、通知日志）
       SUPABASE_URL         = var.supabase_url
       SUPABASE_SERVICE_KEY = var.supabase_service_key
-      
+
       # Firebase 配置
       FIREBASE_PROJECT_ID     = var.firebase_project_id
       FIREBASE_PRIVATE_KEY_ID = var.firebase_private_key_id
@@ -106,9 +101,11 @@ resource "aws_lambda_function" "snow_checker" {
     }
   }
 
+  # 已移出 VPC：数据库在 Supabase（公网 + TLS），不再需要 NAT Gateway。
+  # AWS provider 4.x 删掉 vpc_config 块不会真的解绑，必须显式给空列表。
   vpc_config {
-    subnet_ids         = aws_subnet.private[*].id
-    security_group_ids = [aws_security_group.lambda.id]
+    subnet_ids         = []
+    security_group_ids = []
   }
 
   depends_on = [
