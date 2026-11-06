@@ -54,3 +54,5 @@ lambda_package/
 *.tmp
 *.bak
 daily_report/
+# cutover_lambdas.sh 的配置备份（含密钥）
+.cutover_backup/
