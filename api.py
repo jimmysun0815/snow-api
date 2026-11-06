@@ -67,30 +67,9 @@ def merge_resort_config(resort_data):
     return resort_data
 
 
-@app.route('/api/resorts', methods=['GET'])
-def get_all_resorts():
-    """获取所有雪场数据（完整版，包含天气预报）"""
-    if not db_manager:
-        return jsonify({'error': '数据库未连接'}), 500
-    
-    resorts = db_manager.get_all_resorts_data()
-    
-    if not resorts:
-        return jsonify({
-            'error': '暂无数据',
-            'message': '请先运行数据采集'
-        }), 404
-    
-    # 合并配置数据（海拔等静态信息）
-    resorts = [merge_resort_config(r) for r in resorts]
-    
-    return jsonify({
-        'resorts': resorts,
-        'metadata': {
-            'total_resorts': len(resorts),
-            'timestamp': datetime.now().isoformat()
-        }
-    })
+# 2026-11 删除 GET /api/resorts（全量完整数据）：262 个雪场 × 80 小时逐时预报
+# ≈ 7.6 MB，超过 Lambda 6 MB 响应上限，一直返回 502。App 自 2025-11-16 起不再调用，
+# 列表用 /api/resorts/summary，详情用 /api/resorts/<id> 或 /slug/<slug>。
 
 
 @app.route('/api/resorts/summary', methods=['GET'])

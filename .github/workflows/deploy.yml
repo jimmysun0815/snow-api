@@ -566,7 +566,7 @@ jobs:
           echo "═══════════════════════════════════════"
           echo ""
           echo "📡 API 访问地址:"
-          echo "   https://api.steponsnow.com/api/resorts"
+          echo "   https://api.steponsnow.com/api/resorts/summary"
           echo ""
           echo "🎯 数据采集:"
           echo "   ✅ 部署后自动触发了一次数据采集"
