@@ -108,6 +108,12 @@ resource "aws_lambda_function" "snow_checker" {
     security_group_ids = []
   }
 
+  # 环境变量和代码包由 deploy.yml / scripts/cutover_lambdas.sh 维护（里面有不在
+  # terraform 里的 key，如 SUPABASE_*、OPENMETEO_API_KEY），terraform 不要覆盖。
+  lifecycle {
+    ignore_changes = [environment, filename, source_code_hash, s3_key, s3_object_version]
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.lambda_vpc,
     aws_cloudwatch_log_group.snow_checker

@@ -432,15 +432,16 @@ jobs:
           
           # 更新 Snow Checker 环境变量
           echo "🔧 更新 Snow Checker 环境变量..."
+
+          # 2026-11 起数据库在 Supabase（DATABASE_URL = Prod transaction pooler）。
+          # 这里是整体覆盖，缺了 DATABASE_URL 雪况推送就读不到天气，直接失败。
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "❌ GitHub secret DATABASE_URL 未配置"; exit 1
+          fi
           
           # 使用 jq 构建 JSON，正确处理换行符
           jq -n \
-            --arg db_host "${{ secrets.DB_HOST }}" \
-            --arg db_name "${{ secrets.DB_NAME }}" \
-            --arg db_user "${{ secrets.DB_USER }}" \
-            --arg db_password "${{ secrets.DB_PASSWORD }}" \
-            --arg redis_host "${{ secrets.REDIS_HOST }}" \
-            --arg redis_port "${{ secrets.REDIS_PORT }}" \
+            --arg database_url "${{ secrets.DATABASE_URL }}" \
             --arg firebase_project "${{ secrets.FIREBASE_PROJECT_ID }}" \
             --arg firebase_key_id "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" \
             --arg firebase_key "${{ secrets.FIREBASE_PRIVATE_KEY }}" \
@@ -448,12 +449,7 @@ jobs:
             --arg firebase_client_id "${{ secrets.FIREBASE_CLIENT_ID }}" \
             '{
               Variables: {
-                DB_HOST: $db_host,
-                DB_NAME: $db_name,
-                DB_USER: $db_user,
-                DB_PASSWORD: $db_password,
-                REDIS_HOST: $redis_host,
-                REDIS_PORT: $redis_port,
+                DATABASE_URL: $database_url,
                 FIREBASE_PROJECT_ID: $firebase_project,
                 FIREBASE_PRIVATE_KEY_ID: $firebase_key_id,
                 FIREBASE_PRIVATE_KEY: $firebase_key,
