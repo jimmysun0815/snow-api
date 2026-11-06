@@ -47,27 +47,7 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# NAT Gateway (Lambda 访问外网)
-resource "aws_eip" "nat" {
-  # AWS provider v5.x 不再需要 domain 属性，默认就是 VPC
-  
-  tags = {
-    Name        = "${var.project_name}-nat-eip"
-    Environment = var.environment
-  }
-}
-
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-
-  tags = {
-    Name        = "${var.project_name}-nat"
-    Environment = var.environment
-  }
-
-  depends_on = [aws_internet_gateway.main]
-}
+# NAT Gateway / EIP 已于 2026-11-06 删除：Lambda 已移出 VPC，不再需要访问外网的出口。
 
 # 公共路由表
 resource "aws_route_table" "public" {
@@ -87,11 +67,6 @@ resource "aws_route_table" "public" {
 # 私有路由表
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main.id
-  }
 
   tags = {
     Name        = "${var.project_name}-private-rt"

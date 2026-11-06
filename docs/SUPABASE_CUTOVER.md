@@ -91,7 +91,7 @@ aws lambda invoke --region us-west-2 --function-name resort-data-collector \
 - 每天 UTC 10:00 `cleanup-resort-timeseries` 后，时序表只保留 7 天
 - snow-checker 每小时运行无报错
 
-## 第 5 步：下线 AWS 资源（另行确认后再做）
+## 第 5 步：下线 AWS 资源（2026-11-06 已完成）
 
 1. **先改 admin 后台**（`snow-admin` 仓库）：编辑/删除雪场时还会写 RDS，RDS 删了会报错 → 改成只写 Supabase。
 2. RDS 打最终快照：`aws rds create-db-snapshot --db-instance-identifier <id> --db-snapshot-identifier resort-data-final-2026-11`，确认 available。
@@ -113,3 +113,13 @@ scripts/cutover_lambdas.sh rollback
 `deploy.yml` 每次部署会**整体重写** snow-checker 的环境变量，目前不含 `SUPABASE_URL` /
 `SUPABASE_SERVICE_KEY`，按 `check_snow_and_notify.py` 的逻辑这等于「雪况推送关闭」（夏季模式）。
 雪季要打开：在 deploy.yml 的 snow-checker 那段加上这两个变量（secrets 已有），合并部署即可。
+
+## 下线记录（2026-11-06）
+
+- `resort-admin-api` 移出 VPC（它经 NAT 访问 api.steponsnow.com / Supabase；admin 不直连 RDS，代码无需改）
+- RDS `resort-data-postgres` 已删除，最终快照 **`resort-data-postgres-final-20261106`**（20 GB，约 $2/月；确定不需要可删）
+- ElastiCache `resort-data-redis`、NAT Gateway `resort-data-nat`、EIP `52.41.96.85` 已删除/释放
+- 同账号的 `pp-*`（pp-postgres、pp-redis、pp-vpc）属于另一个项目，未动
+- terraform：删除 rds.tf / elasticache.tf / security_groups.tf 和 vpc.tf 里的 NAT/EIP。
+  已删资源在 state 里的残留由下面的 targeted apply 清理（`RDSOSMetrics` 是账号级日志组，只从 state 移除不删除）
+- 回滚已不可用（RDS 已删）；如需恢复数据：从最终快照 restore 一个新实例

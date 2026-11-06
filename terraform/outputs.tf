@@ -19,30 +19,6 @@ output "acm_certificate_status" {
   value       = aws_acm_certificate.api.status
 }
 
-# RDS 输出
-output "rds_endpoint" {
-  description = "RDS PostgreSQL endpoint"
-  value       = aws_db_instance.postgresql.endpoint
-  sensitive   = true
-}
-
-output "rds_address" {
-  description = "RDS PostgreSQL address"
-  value       = aws_db_instance.postgresql.address
-}
-
-# Redis 输出
-output "redis_endpoint" {
-  description = "ElastiCache Redis endpoint"
-  value       = aws_elasticache_cluster.redis.cache_nodes[0].address
-  sensitive   = true
-}
-
-output "redis_port" {
-  description = "ElastiCache Redis port"
-  value       = aws_elasticache_cluster.redis.cache_nodes[0].port
-}
-
 # Lambda 输出
 output "lambda_api_function_name" {
   description = "API Lambda function name"
@@ -85,14 +61,11 @@ output "deployment_info" {
        状态: ${aws_acm_certificate.api.status}
        域名: api.${var.domain_name}, *.${var.domain_name}
 
-    🗄️  数据库:
-       PostgreSQL: ${aws_db_instance.postgresql.address}:5432
-       Redis: ${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379
+    🗄️  数据库: Supabase（见 docs/SUPABASE_CUTOVER.md）
 
     🔧 下一步:
-       1. 初始化数据库: 运行 init_database.py
-       2. 采集数据: 手动触发 ${aws_lambda_function.collector.function_name}
-       3. 测试 API: curl https://api.${var.domain_name}/api/resorts
+       1. 采集数据: 手动触发 ${aws_lambda_function.collector.function_name}
+       2. 测试 API: curl https://api.${var.domain_name}/api/resorts/summary
 
     📊 监控:
        CloudWatch Logs: https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#logsV2:log-groups
