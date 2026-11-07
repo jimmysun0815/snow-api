@@ -86,26 +86,30 @@ def _get_active_subscriptions():
     return response.json()
 
 
-def _check_already_notified(resort_id, notification_date, forecast_date):
-    """Check if we already sent a notification for this resort+date combo today via Supabase."""
+def _check_already_notified(resort_id, forecast_date):
+    """
+    这个雪场的这个降雪日是否已经提醒过。
+
+    以前去重键带 notification_date（=今天），同一个降雪日会在提前 3 / 2 / 1 天
+    各推一次；现在同一个 (雪场, 降雪日) 只推一次。
+    """
     url = f'{_supabase_url()}/rest/v1/snow_notification_logs'
     params = {
         'resort_id': f'eq.{resort_id}',
-        'notification_date': f'eq.{notification_date}',
         'forecast_date': f'eq.{forecast_date}',
         'select': 'id',
         'limit': '1',
     }
-    response = requests.get(url, headers=_supabase_headers(), params=params)
+    response = requests.get(url, headers=_supabase_headers(), params=params, timeout=10)
     response.raise_for_status()
     return len(response.json()) > 0
 
 
-def _log_notification(user_id, resort_id, notification_date, forecast_date,
-                      snow_amount, weather_code, title, body):
-    """Write a notification log entry to Supabase."""
+def _log_notifications(user_ids, resort_id, notification_date, forecast_date,
+                       snow_amount, weather_code, title, body):
+    """批量写通知日志（一次请求）。"""
     url = f'{_supabase_url()}/rest/v1/snow_notification_logs'
-    payload = {
+    payload = [{
         'user_id': user_id,
         'resort_id': resort_id,
         'notification_date': notification_date,
@@ -114,8 +118,8 @@ def _log_notification(user_id, resort_id, notification_date, forecast_date,
         'weather_code': weather_code,
         'notification_title': title,
         'notification_body': body,
-    }
-    response = requests.post(url, headers=_supabase_headers(), json=payload)
+    } for user_id in user_ids]
+    response = requests.post(url, headers=_supabase_headers(), json=payload, timeout=10)
     response.raise_for_status()
 
 
@@ -211,39 +215,39 @@ def check_snow_alerts():
                         # Found significant snowfall — check dedup via Supabase
                         forecast_date_str = forecast_date.isoformat()
 
-                        if _check_already_notified(resort_id, today_str, forecast_date_str):
-                            print(f"Already notified for {info['name']} on {forecast_date_str}, skipping")
+                        if _check_already_notified(resort_id, forecast_date_str):
+                            print(f"Already notified for {info['name']} snow day {forecast_date_str}, skipping")
                             continue
 
-                        # Send push notification
-                        snow_date_display = forecast_date.strftime('%m月%d日')
-                        print(f"Sending snow alert for {info['name']}: {snowfall}cm on {forecast_date}")
+                        title = f"{info['name']} 降雪预报 ❄️"
+                        body = f"{forecast_date.month:02d}月{forecast_date.day:02d}日 预计降雪 {snowfall}cm"
 
-                        send_snow_alert_notification(
+                        # 先写日志再发送：如果发送途中 Lambda 超时，下一小时不会重复推送
+                        # （宁可这一次漏推，也不要每小时重复轰炸）
+                        try:
+                            _log_notifications(
+                                user_ids=info['users'],
+                                resort_id=resort_id,
+                                notification_date=today_str,
+                                forecast_date=forecast_date_str,
+                                snow_amount=snowfall,
+                                weather_code=day.get('weather_code'),
+                                title=title,
+                                body=body,
+                            )
+                        except Exception as log_err:
+                            print(f"Failed to write notification logs for {info['name']}, skip sending: {log_err}")
+                            break
+
+                        print(f"Sending snow alert for {info['name']}: {snowfall}cm on {forecast_date}")
+                        result = send_snow_alert_notification(
                             user_ids=info['users'],
                             resort_name=info['name'],
-                            snow_date=snow_date_display,
-                            snow_amount=snowfall
+                            snow_date=forecast_date,
+                            snow_amount=snowfall,
+                            resort_id=resort_id,
                         )
-
-                        # Log to Supabase for each user
-                        title = f"{info['name']} 降雪预报 ❄️"
-                        body = f"{snow_date_display} 预计降雪 {snowfall}cm"
-
-                        for user_id in info['users']:
-                            try:
-                                _log_notification(
-                                    user_id=user_id,
-                                    resort_id=resort_id,
-                                    notification_date=today_str,
-                                    forecast_date=forecast_date_str,
-                                    snow_amount=snowfall,
-                                    weather_code=day.get('weather_code'),
-                                    title=title,
-                                    body=body,
-                                )
-                            except Exception as log_err:
-                                print(f"Failed to log notification for user {user_id}: {log_err}")
+                        print(f"Snow alert result for {info['name']}: {result}")
 
                         notifications_sent += 1
                         print(f"Notified {len(info['users'])} users for {info['name']}")
