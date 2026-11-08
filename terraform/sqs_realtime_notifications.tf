@@ -105,6 +105,13 @@ resource "aws_lambda_function" "sqs_notification_processor" {
     }
   }
 
+  # 环境变量和代码包由 deploy.yml 维护（来自 GitHub Secrets）。terraform 不要覆盖：
+  # 2026-11-06 本地 terraform apply 曾用 terraform.tfvars 里的旧值覆盖了这里的
+  # SUPABASE_SERVICE_KEY / FIREBASE_PRIVATE_KEY，导致 Dev 推送 401 + 私钥解析失败。
+  lifecycle {
+    ignore_changes = [environment, s3_key, s3_object_version, source_code_hash, filename]
+  }
+
   depends_on = [
     aws_cloudwatch_log_group.sqs_notification_processor
   ]
