@@ -24,9 +24,9 @@ pg_cron「push-outbox-retry」每分钟：
 
 | 作用 | 位置 |
 |------|------|
-| outbox / 重试 / RPC / device_tokens 变更 | app 仓库 `supabase/migrations/146_push_outbox.sql` |
-| webhook URL（每个环境一行） | `146_push_config_dev.sql` / `146_push_config_prod.sql` → 表 `push_config` |
-| 触发器改用 enqueue_push | `147_push_triggers_use_outbox.sql` |
+| outbox / 重试 / RPC / device_tokens 变更 | app 仓库 `supabase/migrations/155_push_outbox.sql` |
+| webhook URL（每个环境一行） | `app_settings.push_webhook_url`（154，取值见 app 仓库 `supabase/env/README.md`） |
+| 触发器改用 enqueue_push | `156_push_triggers_use_outbox.sql` |
 | Lambda 入口 | `sqs_notification_processor.py` |
 | 查 token / 渲染 / 发送 | `push_service.py` |
 | 降雪提醒 | `check_snow_and_notify.py` |
@@ -63,19 +63,19 @@ App 切换语言时会重新注册 token，更新 locale。
 
 - `token` 全局唯一；App 通过 RPC `register_device_token(p_token, p_platform, p_locale)` 注册，
   同一台手机换账号登录时 token 自动转给新账号。
-- 目前仍保留 `(user_id, platform)` 唯一约束以兼容旧版 App；执行 `148_device_tokens_multi_device.sql`
+- 目前仍保留 `(user_id, platform)` 唯一约束以兼容旧版 App；执行 `157_device_tokens_multi_device.sql`
   后同一用户可以多台设备同时收推送。
 
 ## 部署顺序
 
 1. **先**部署本仓库的推送 Lambda（dev / prod 两个函数，`deploy.yml` 已覆盖）。新 Lambda 兼容旧格式 payload。
-2. 再在 Supabase 执行 146 → 146_push_config_{env} → 147。
+2. 再在 Supabase SQL Editor 依次执行 155 → 156（Dev、Prod 各一遍；执行前确认两个环境的 `app_settings.push_webhook_url` 已配置：`SELECT public._push_webhook_url();`）。
    （反过来的话，旧 Lambda 不会回写 outbox 状态，重试任务会造成重复推送。）
-3. 发布新版 App；用户普及后执行 148。
+3. 发布新版 App；用户普及后执行 157。
 
 ## 已知未处理（P0，单独排期）
 
-- Lambda Function URL 没有鉴权：任何人拿到 URL 都能伪造推送。建议在 `push_config` 加一个共享密钥，
+- Lambda Function URL 没有鉴权：任何人拿到 URL 都能伪造推送。建议在 `app_settings` 加一个共享密钥，
   `_push_outbox_post` 带上请求头，Lambda 校验。
 - 退出登录时没有删除本机 token（换账号登录时已由 `register_device_token` 自动纠正，但登出后到下次登录之间，
   旧账号的推送仍会到达这台设备）。

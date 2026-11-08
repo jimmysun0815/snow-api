@@ -117,7 +117,7 @@ def mask_token(token: str) -> str:
 def get_user_devices(user_ids: List[str]) -> List[Dict]:
     """
     一次查出多个用户的设备。返回 [{'user_id','token','locale'}]。
-    locale 列在迁移 146 之前不存在 —— 查询失败时自动降级为不带 locale。
+    locale 列在迁移 155 之前不存在 —— 查询失败时自动降级为不带 locale。
     """
     user_ids = [u for u in dict.fromkeys(user_ids) if u]
     if not user_ids:
