@@ -71,13 +71,23 @@ def _sb_url() -> str:
     return os.environ.get('SUPABASE_URL', '').rstrip('/')
 
 
+def supabase_auth_headers(key: Optional[str]) -> Dict:
+    """
+    兼容两种 Supabase key：
+      - 旧版 service_role JWT（eyJ…）：apikey + Authorization: Bearer
+      - 新版 secret key（sb_secret_…）：只能放 apikey；放进 Authorization 会被当成
+        无效 JWT 返回 401
+    """
+    key = key or ''
+    headers = {'apikey': key}
+    if not key.startswith('sb_'):
+        headers['Authorization'] = f'Bearer {key}'
+    return headers
+
+
 def _sb_headers(extra: Optional[Dict] = None) -> Dict:
-    key = os.environ.get('SUPABASE_SERVICE_KEY')
-    headers = {
-        'apikey': key,
-        'Authorization': f'Bearer {key}',
-        'Content-Type': 'application/json',
-    }
+    headers = supabase_auth_headers(os.environ.get('SUPABASE_SERVICE_KEY'))
+    headers['Content-Type'] = 'application/json'
     if extra:
         headers.update(extra)
     return headers

@@ -79,4 +79,11 @@ with mock.patch.object(ps.requests,'get',fake_get), mock.patch.object(ps.request
     ps.send_snow_alert_notification(['u1'],'Whistler',date(2026,11,20),12.0,resort_id=7)
     t={m.token[:8]:(m.notification.title,m.notification.body,m.data.get('resort_id')) for m in sent}; print(t)
     assert t['tok_vali'][0]=='❄️ Snow forecast: Whistler' and t['tok_flak'][1]=='11月20日 预计降雪 12cm' and t['tok_vali'][2]=='7'
+# Firebase 凭证坏掉：不应崩溃，应记为 failed（可重试）并写明原因
+with mock.patch.object(ps.requests,'get',fake_get), mock.patch.object(ps.requests,'post',fake_post), \
+     mock.patch.object(ps,'initialize_firebase',mock.Mock(side_effect=ValueError('Could not deserialize key data'))):
+    st,err=sp.process_notification({'user_id':'u1','title':'t','body':'b','data':{}})
+    assert st=='failed' and 'deserialize' in err,(st,err)
+assert ps.supabase_auth_headers('sb_secret_x')=={'apikey':'sb_secret_x'}
+assert ps.supabase_auth_headers('eyJabc')['Authorization']=='Bearer eyJabc'
 print('ALL OK')

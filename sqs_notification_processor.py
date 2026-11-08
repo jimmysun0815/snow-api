@@ -24,10 +24,11 @@ import base64
 import json
 from typing import Any, Dict, Optional, Tuple
 
-from push_service import initialize_firebase, send_to_users, sb_rpc
+from push_service import send_to_users, sb_rpc
 
-# 容器复用时只初始化一次
-initialize_firebase()
+# Firebase 不在模块加载时初始化：凭证配置错误时整个 Lambda 会在 INIT 阶段崩溃，
+# 什么都记不下来。改为发送时（send_to_users 内部）惰性初始化，失败会作为
+# 可重试错误写进 push_outbox.last_error，凭证修好后由重试任务自动补发。
 
 
 def _response(status: int, payload: Dict) -> Dict[str, Any]:

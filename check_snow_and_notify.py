@@ -15,18 +15,17 @@ from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
-from push_service import send_snow_alert_notification, initialize_firebase
+from push_service import send_snow_alert_notification, initialize_firebase, supabase_auth_headers
 
 
 def _supabase_headers():
     """Return headers for Supabase REST API calls."""
-    supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
-    return {
-        'apikey': supabase_key,
-        'Authorization': f'Bearer {supabase_key}',
+    headers = supabase_auth_headers(os.environ.get('SUPABASE_SERVICE_KEY'))
+    headers.update({
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal',
-    }
+    })
+    return headers
 
 
 def _supabase_url():
