@@ -497,6 +497,30 @@ def send_push_notification(
     return {'success_count': success, 'failure_count': failure}
 
 
+def healthcheck() -> Dict:
+    """
+    不给任何人推送的前提下检查凭证：
+      supabase —— 调一次 push_badge_counts([])
+      firebase —— dry_run 发给一个假 token：凭证有效时 FCM 返回 InvalidArgument（token 无效），
+                  凭证无效时返回鉴权错误 / 私钥解析失败
+    """
+    out: Dict = {}
+    try:
+        sb_rpc('push_badge_counts', {'p_user_ids': []})
+        out['supabase'] = 'ok'
+    except Exception as e:
+        out['supabase'] = f'error: {type(e).__name__}: {e}'
+    try:
+        initialize_firebase()
+        messaging.send(messaging.Message(token='healthcheck-invalid-token', data={'ping': '1'}), dry_run=True)
+        out['firebase'] = 'ok'
+    except (fb_exceptions.InvalidArgumentError, messaging.UnregisteredError):
+        out['firebase'] = 'ok'          # 鉴权通过，只是 token 是假的
+    except Exception as e:
+        out['firebase'] = f'error: {type(e).__name__}: {str(e)[:200]}'
+    return out
+
+
 # =====================================================
 # 降雪提醒
 # =====================================================

@@ -24,7 +24,7 @@ import base64
 import json
 from typing import Any, Dict, Optional, Tuple
 
-from push_service import send_to_users, sb_rpc
+from push_service import healthcheck, send_to_users, sb_rpc
 
 # Firebase 不在模块加载时初始化：凭证配置错误时整个 Lambda 会在 INIT 阶段崩溃，
 # 什么都记不下来。改为发送时（send_to_users 内部）惰性初始化，失败会作为
@@ -115,6 +115,8 @@ def process_outbox_record(record: Dict[str, Any]) -> str:
 # =====================================================
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    if event.get('action') == 'healthcheck':
+        return _response(200, healthcheck())
     if 'Records' in event:
         return handle_sqs_batch(event)
     if 'body' in event and 'headers' in event:
