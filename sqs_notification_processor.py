@@ -11,7 +11,7 @@
 
 push_outbox 状态流转（id 存在时）：
   push_outbox_claim(id)  pending|failed → sending   （认领失败 = 已被处理，直接返回）
-  发送完成后 push_outbox_mark(id, status, error)：
+  发送完成后 push_outbox_mark(id, status, error, detail)（detail = 设备数 / 成功 / 失效 / 可重试，迁移 159）：
     sent    —— 至少一台设备成功
     skipped —— 没有设备 / 全部 token 失效（重试也没用）
     failed  —— 只有临时错误，数据库按退避重试（最多 5 次）
@@ -21,6 +21,8 @@ pg_net 不会根据状态码重试，返回 500 只会制造噪音日志。
 """
 
 import base64
+
+import requests
 import json
 from typing import Any, Dict, Optional, Tuple
 
@@ -43,13 +45,13 @@ def _response(status: int, payload: Dict) -> Dict[str, Any]:
 # 核心处理
 # =====================================================
 
-def process_notification(record: Dict[str, Any]) -> Tuple[str, Optional[str]]:
+def process_notification(record: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[Dict]]:
     """
     发送一条通知。返回 (status, error)，status ∈ sent | skipped | failed。
     """
     user_id = record.get('user_id')
     if not user_id:
-        return 'skipped', 'missing user_id'
+        return 'skipped', 'missing user_id', None
 
     data = record.get('data') or {}
     if isinstance(data, str):
@@ -72,22 +74,33 @@ def process_notification(record: Dict[str, Any]) -> Tuple[str, Optional[str]]:
         )
     except Exception as e:                 # 查 token / Firebase 鉴权等异常 → 可重试
         print(f"❌ 发送异常: {e}")
-        return 'failed', f'{type(e).__name__}: {e}'
+        return 'failed', f'{type(e).__name__}: {e}', None
 
+    detail = {k: result[k] for k in ('device_count', 'success_count', 'invalid_count', 'retryable_count')}
     if result['device_count'] == 0:
-        return 'skipped', 'no devices'
+        return 'skipped', 'no devices', detail
     if result['success_count'] > 0:
-        return 'sent', None
+        return 'sent', None, detail
     if result['retryable_count'] > 0:
-        return 'failed', '; '.join(result['errors'])[:1000] or 'retryable error'
-    return 'skipped', 'all tokens invalid'
+        return 'failed', '; '.join(result['errors'])[:1000] or 'retryable error', detail
+    return 'skipped', 'all tokens invalid', detail
+
+
+def _mark(outbox_id, status, error, detail):
+    """回写结果；迁移 159 之前 push_outbox_mark 没有 p_detail 参数（404），退回 3 参数调用。"""
+    try:
+        sb_rpc('push_outbox_mark', {'p_id': outbox_id, 'p_status': status, 'p_error': error, 'p_detail': detail})
+    except requests.HTTPError as e:
+        if e.response is None or e.response.status_code != 404:
+            raise
+        sb_rpc('push_outbox_mark', {'p_id': outbox_id, 'p_status': status, 'p_error': error})
 
 
 def process_outbox_record(record: Dict[str, Any]) -> str:
     """带 outbox id 的记录：认领 → 发送 → 回写。返回最终状态（或 'already_handled'）。"""
     outbox_id = record.get('id')
     if outbox_id is None:
-        status, _ = process_notification(record)
+        status, _, _ = process_notification(record)
         return status
 
     try:
@@ -100,9 +113,9 @@ def process_outbox_record(record: Dict[str, Any]) -> str:
         print(f"ℹ️  outbox {outbox_id} 已被处理，跳过")
         return 'already_handled'
 
-    status, error = process_notification(record)
+    status, error, detail = process_notification(record)
     try:
-        sb_rpc('push_outbox_mark', {'p_id': outbox_id, 'p_status': status, 'p_error': error})
+        _mark(outbox_id, status, error, detail)
     except Exception as e:
         # 回写失败：行停在 sending，5 分钟后会被重投（可能重复一次，好过丢失）
         print(f"❌ 回写 outbox {outbox_id} 状态失败: {e}")

@@ -1,21 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Snow Alert Checker
-Checks for upcoming snow and sends push notifications.
+Snow Alert Checker（EventBridge 每小时）
 
-Data sources:
-  - Supabase (REST API): resort_subscriptions, resorts (name), snow_notification_logs, device_tokens
-  - RDS (psycopg2): resort_weather.forecast_7d (weather forecast data)
+「该不该发」全部由数据库函数 snow_alert_candidates()（迁移 160）判断，admin「推送监控 → 即将发送」
+调用的是同一个函数，所以后台看到的待发名单和这里实际发送的一致：
+  - 订阅了该雪场、未来 1~3 天（UTC 日期）有 ≥3cm 降雪
+  - 同一 (雪场, 降雪日) 只提醒一次
+  - 雪场最新雪况为 open / partial，且是 72 小时内采集的（未开放的雪场不发）
+
+发送：先写 snow_notification_logs（每人每雪场每天最多一条，已存在的跳过），
+再经 push_outbox 入队（迁移 159），由推送 Lambda 投递 —— 自动重试、按设备语言渲染，
+admin 里能查到来源（snow-checker）和原因。入队不可用时退回直接发送。
+
+event {"dry_run": true}：忽略开关，只返回每个雪场的判断结果，不写日志、不发送。
 """
 
 import os
 import json
-from datetime import datetime, timedelta
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from datetime import datetime, timezone
+
 import requests
-from push_service import send_snow_alert_notification, supabase_auth_headers
+from push_service import (
+    enqueue_snow_alert,
+    send_snow_alert_notification,
+    supabase_auth_headers,
+)
 
 
 def _supabase_headers():
@@ -34,17 +44,14 @@ def _supabase_url():
 
 def _is_snow_push_enabled():
     """
-    雪况推送总开关（夏季雪况数据源退订后关闭，冬季再打开）。
+    雪况推送总开关。
 
     判定优先级:
       1. 环境变量 SNOW_PUSH_ENABLED=true/false —— 运维强制开关，设了就听它的
-      2. Supabase 未配置（缺 SUPABASE_URL/SUPABASE_SERVICE_KEY）—— 视为关闭，
-         因为没有订阅数据推送本来就无法工作
-      3. Supabase app_settings 表 key='snow_push_enabled' —— App 管理界面可调
-      4. 都没有 → 默认开启
-
-    冬季重新启用步骤: 给本 Lambda 配置 SUPABASE_URL + SUPABASE_SERVICE_KEY
-    环境变量（并确保 app_settings 里没有 snow_push_enabled=false 的行）。
+      2. Supabase 未配置（缺 SUPABASE_URL/SUPABASE_SERVICE_KEY）—— 视为关闭
+      3. Supabase app_settings 表 key='snow_push_enabled' —— admin「系统设置」可调
+      4. 没有这一行 → 默认开启
+      5. 读取失败 → 视为关闭（宁可这一小时不发，也不要在关闭状态下误发）
     """
     env = os.environ.get('SNOW_PUSH_ENABLED', '').strip().lower()
     if env in ('true', '1', 'yes'):
@@ -62,87 +69,28 @@ def _is_snow_push_enabled():
         response = requests.get(url, headers=_supabase_headers(), params=params, timeout=5)
         response.raise_for_status()
         rows = response.json()
-        if rows:
-            value = rows[0].get('value')
-            if isinstance(value, str):  # JSONB 里存了字符串 "false" 的情况
-                return value.strip().lower() not in ('false', '0', 'no')
-            return bool(value)
     except Exception as e:
-        print(f"[WARN] 读取 app_settings.snow_push_enabled 失败，按开启处理: {e}")
+        print(f"[WARN] 读取 app_settings.snow_push_enabled 失败，按关闭处理: {e}")
+        return False
 
-    return True
-
-
-PAGE_SIZE = 1000   # PostgREST 默认单次最多返回 1000 行，超出部分会被静默截断，所以要分页
-
-
-def _get_active_subscriptions():
-    """
-    Fetch all active resort subscriptions from Supabase, with resort name.
-
-    不用 PostgREST 关联查询 resorts(name)：Prod 的 resort_subscriptions.resort_id 没有指向
-    resorts 的外键（订阅表比 151 迁过来的 resorts 表早），关联查询会返回 400。
-    改为两步：分页查订阅，再按 resort_id 分批查名字。返回形状不变：
-    [{'resort_id', 'user_id', 'resorts': {'name'} | None}]
-    """
-    url = f'{_supabase_url()}/rest/v1/resort_subscriptions'
-    subs, offset = [], 0
-    while True:
-        params = {
-            'is_active': 'eq.true',
-            'select': 'id,resort_id,user_id',
-            'order': 'id',
-            'limit': str(PAGE_SIZE),
-            'offset': str(offset),
-        }
-        response = requests.get(url, headers=_supabase_headers(), params=params, timeout=10)
-        response.raise_for_status()
-        page = response.json()
-        subs.extend(page)
-        if len(page) < PAGE_SIZE:
-            break
-        offset += PAGE_SIZE
-
-    names = {}
-    resort_ids = sorted({s['resort_id'] for s in subs})
-    for i in range(0, len(resort_ids), 200):
-        chunk = resort_ids[i:i + 200]
-        response = requests.get(
-            f'{_supabase_url()}/rest/v1/resorts',
-            headers=_supabase_headers(),
-            params={'id': f'in.({",".join(str(r) for r in chunk)})', 'select': 'id,name'},
-            timeout=10,
-        )
-        response.raise_for_status()
-        names.update({r['id']: r['name'] for r in response.json()})
-
-    return [
-        {
-            'resort_id': s['resort_id'],
-            'user_id': s['user_id'],
-            'resorts': {'name': names[s['resort_id']]} if s['resort_id'] in names else None,
-        }
-        for s in subs
-    ]
+    if not rows:
+        return True
+    value = rows[0].get('value')
+    if isinstance(value, str):  # JSONB 里存了字符串 "false" 的情况
+        return value.strip().lower() not in ('false', '0', 'no')
+    return bool(value)
 
 
-def _check_already_notified(resort_id, forecast_date):
-    """
-    这个雪场的这个降雪日是否已经提醒过。
-
-    以前去重键带 notification_date（=今天），同一个降雪日会在提前 3 / 2 / 1 天
-    各推一次；现在同一个 (雪场, 降雪日) 只推一次。
-    """
-    url = f'{_supabase_url()}/rest/v1/snow_notification_logs'
-    params = {
-        'resort_id': f'eq.{resort_id}',
-        'forecast_date': f'eq.{forecast_date}',
-        'select': 'id',
-        'limit': '1',
-    }
-    response = requests.get(url, headers=_supabase_headers(), params=params, timeout=10)
+def _get_candidates():
+    """每个有订阅的雪场一行：action = send / skip + skip_reason（迁移 160 的 snow_alert_candidates）。"""
+    response = requests.post(
+        f'{_supabase_url()}/rest/v1/rpc/snow_alert_candidates',
+        headers=_supabase_headers(),
+        json={},
+        timeout=30,
+    )
     response.raise_for_status()
-    return len(response.json()) > 0
+    return response.json()
 
 
 def _log_notifications(user_ids, resort_id, notification_date, forecast_date,
@@ -177,176 +125,84 @@ def _log_notifications(user_ids, resort_id, notification_date, forecast_date,
     return [r['user_id'] for r in response.json()]
 
 
+def _reason(c):
+    """推送监控里展示的触发原因。"""
+    status = c.get('condition_status') or '未知'
+    at = (c.get('condition_at') or '')[:16].replace('T', ' ')
+    return (f"降雪提醒：{c['resort_name']} {c['snow_date']} 预计降雪 {c['snowfall_cm']}cm"
+            f"（≥3cm，未来 3 天内）；雪场状态 {status}（{at} 采集）；该雪场订阅用户")
+
+
+def _summary(c):
+    """返回给调用方 / dry_run 的精简结果。"""
+    return {
+        'resort_id': c['resort_id'],
+        'resort': c['resort_name'],
+        'action': c['action'],
+        'skip_reason': c.get('skip_reason'),
+        'snow_date': c.get('snow_date'),
+        'snowfall_cm': c.get('snowfall_cm'),
+        'condition_status': c.get('condition_status'),
+        'condition_at': c.get('condition_at'),
+        'users': c.get('subscribers'),
+    }
+
+
 def check_snow_alerts(dry_run=False):
-    """Check for snow alerts and send push notifications.
-
-    dry_run=True：完整计算会提醒哪些雪场 / 多少用户，但不写日志、不发送。
-    返回 [{'resort_id','resort','snow_date','snowfall_cm','users'}]（实际发送 / 将要发送的列表）。
-
-    1. Read active subscriptions from Supabase
-    2. Read latest weather forecast from RDS (resort_weather.forecast_7d)
-    3. If snowfall >= 3cm in next 3 days and not yet notified today, send push
-    4. Log notification to Supabase for deduplication
     """
-    # --- Step 1: Get active subscriptions from Supabase ---
-    raw_subscriptions = _get_active_subscriptions()
-    print(f"Found {len(raw_subscriptions)} active subscriptions")
+    返回每个有订阅的雪场的判断结果（_summary 列表）；dry_run 时不写日志、不发送。
+    """
+    candidates = _get_candidates()
+    to_send = [c for c in candidates if c['action'] == 'send']
+    print(f"{len(candidates)} subscribed resorts, {len(to_send)} to notify"
+          + (" [DRY RUN]" if dry_run else ""))
+    for c in candidates:
+        if c['action'] != 'send':
+            print(f"  skip {c['resort_name']}: {c.get('skip_reason')}")
 
-    if not raw_subscriptions:
-        print("No active subscriptions, exiting")
-        return []
+    results = [_summary(c) for c in candidates]
+    if dry_run:
+        return results
 
-    # Group by resort_id
-    resort_subscribers = {}
-    for sub in raw_subscriptions:
-        resort_id = sub['resort_id']
-        resort_name = sub.get('resorts', {}).get('name', f'Resort {resort_id}') if sub.get('resorts') else f'Resort {resort_id}'
-        if resort_id not in resort_subscribers:
-            resort_subscribers[resort_id] = {
-                'name': resort_name,
-                'users': []
-            }
-        if sub['user_id'] not in resort_subscribers[resort_id]['users']:   # 重复订阅只算一次
-            resort_subscribers[resort_id]['users'].append(sub['user_id'])
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    for c, res in ((c, r) for c, r in zip(candidates, results) if c['action'] == 'send'):
+        snow_date = datetime.fromisoformat(c['snow_date']).date()
+        title = f"❄️ {c['resort_name']} 降雪预报"
+        body = f"{snow_date.month:02d}月{snow_date.day:02d}日 预计降雪 {c['snowfall_cm']}cm"
+        try:
+            # 先写日志再发送：发送途中超时，下一小时也不会重复推
+            new_users = _log_notifications(
+                user_ids=c['user_ids'], resort_id=c['resort_id'],
+                notification_date=today_str, forecast_date=c['snow_date'],
+                snow_amount=c['snowfall_cm'], weather_code=None, title=title, body=body,
+            )
+        except Exception as e:
+            print(f"Failed to write notification logs for {c['resort_name']}, skip sending: {e}")
+            res['result'] = f'log failed: {e}'
+            continue
 
-    print(f"Grouped into {len(resort_subscribers)} resorts")
+        if not new_users:
+            print(f"All users of {c['resort_name']} already notified today, skip")
+            res['result'] = 'already notified today'
+            continue
 
-    # --- Step 2: Connect to RDS for weather data ---
-    # 2026-11 起数据库在 Supabase（DATABASE_URL = pooler 连接串）；
-    # 没设 DATABASE_URL 时保留旧的 DB_* 变量，兼容本地调试
-    if os.environ.get('DATABASE_URL'):
-        conn = psycopg2.connect(os.environ['DATABASE_URL'])
-    else:
-        conn = psycopg2.connect(
-            host=os.environ.get('DB_HOST'),
-            database=os.environ.get('DB_NAME'),
-            user=os.environ.get('DB_USER'),
-            password=os.environ.get('DB_PASSWORD'),
-        )
+        queued = enqueue_snow_alert(new_users, c['resort_name'], snow_date, c['snowfall_cm'],
+                                    resort_id=c['resort_id'], reason=_reason(c))
+        if queued['failed']:
+            print(f"enqueue failed for {len(queued['failed'])} users, sending directly")
+            send_snow_alert_notification(queued['failed'], c['resort_name'], snow_date,
+                                         c['snowfall_cm'], resort_id=c['resort_id'])
+        res['result'] = f"queued {len(queued['queued'])}, direct {len(queued['failed'])}"
+        print(f"Snow alert {c['resort_name']}: {res['result']}")
 
-    today = datetime.now().date()
-    today_str = today.isoformat()
-    notifications_sent = 0
-    planned = []
-
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            for resort_id, info in resort_subscribers.items():
-                try:
-                    # Get the latest weather forecast from resort_weather table
-                    cur.execute("""
-                        SELECT forecast_7d
-                        FROM resort_weather
-                        WHERE resort_id = %s
-                        ORDER BY timestamp DESC
-                        LIMIT 1
-                    """, (resort_id,))
-
-                    result = cur.fetchone()
-                    if not result or not result['forecast_7d']:
-                        print(f"No weather data for resort {resort_id} ({info['name']}), skipping")
-                        continue
-
-                    # forecast_7d is directly a JSON array of daily forecasts
-                    forecast = result['forecast_7d']
-                    if not isinstance(forecast, list):
-                        print(f"Unexpected forecast format for resort {resort_id}, skipping")
-                        continue
-
-                    # Scan next 3 days for significant snowfall
-                    for day in forecast:
-                        try:
-                            day_date_str = day.get('date', '')
-                            if not day_date_str:
-                                continue
-                            forecast_date = datetime.fromisoformat(day_date_str.split('T')[0]).date()
-                        except (ValueError, TypeError):
-                            continue
-
-                        days_ahead = (forecast_date - today).days
-                        if days_ahead < 1 or days_ahead > 3:
-                            continue
-
-                        snowfall = day.get('snowfall') or 0
-                        if snowfall < 3:
-                            continue
-
-                        # Found significant snowfall — check dedup via Supabase
-                        forecast_date_str = forecast_date.isoformat()
-
-                        if _check_already_notified(resort_id, forecast_date_str):
-                            print(f"Already notified for {info['name']} snow day {forecast_date_str}, skipping")
-                            continue
-
-                        planned.append({
-                            'resort_id': resort_id,
-                            'resort': info['name'],
-                            'snow_date': forecast_date_str,
-                            'snowfall_cm': snowfall,
-                            'users': len(info['users']),
-                        })
-                        if dry_run:
-                            print(f"[DRY RUN] would notify {len(info['users'])} users: "
-                                  f"{info['name']} {snowfall}cm on {forecast_date_str}")
-                            break
-
-                        title = f"{info['name']} 降雪预报 ❄️"
-                        body = f"{forecast_date.month:02d}月{forecast_date.day:02d}日 预计降雪 {snowfall}cm"
-
-                        # 先写日志再发送：如果发送途中 Lambda 超时，下一小时不会重复推送
-                        # （宁可这一次漏推，也不要每小时重复轰炸）
-                        try:
-                            new_users = _log_notifications(
-                                user_ids=info['users'],
-                                resort_id=resort_id,
-                                notification_date=today_str,
-                                forecast_date=forecast_date_str,
-                                snow_amount=snowfall,
-                                weather_code=day.get('weather_code'),
-                                title=title,
-                                body=body,
-                            )
-                        except Exception as log_err:
-                            print(f"Failed to write notification logs for {info['name']}, skip sending: {log_err}")
-                            break
-
-                        if not new_users:
-                            print(f"All {len(info['users'])} users of {info['name']} already notified today, skip")
-                            break
-
-                        print(f"Sending snow alert for {info['name']} to {len(new_users)} users: "
-                              f"{snowfall}cm on {forecast_date}")
-                        result = send_snow_alert_notification(
-                            user_ids=new_users,
-                            resort_name=info['name'],
-                            snow_date=forecast_date,
-                            snow_amount=snowfall,
-                            resort_id=resort_id,
-                        )
-                        print(f"Snow alert result for {info['name']}: {result}")
-
-                        notifications_sent += 1
-                        print(f"Notified {len(new_users)} users for {info['name']}")
-
-                        # Only notify once per resort per run (the earliest snow day found)
-                        break
-
-                except Exception as e:
-                    print(f"Error checking resort {resort_id} ({info['name']}): {e}")
-                    continue
-
-    finally:
-        conn.close()
-
-    print(f"Done. Sent {notifications_sent} snow alert(s)" + (" [DRY RUN]" if dry_run else ""))
-    return planned
+    return results
 
 
 def lambda_handler(event, context):
     """
     Lambda handler for snow alert checking
 
-    event {"dry_run": true}：上线 / 排查用。忽略开关，只计算会提醒谁，不写日志、不发送。
+    event {"dry_run": true}：上线 / 排查用。忽略开关，只返回判断结果，不写日志、不发送。
     """
     dry_run = bool((event or {}).get('dry_run'))
     try:
@@ -360,17 +216,15 @@ def lambda_handler(event, context):
                 })
             }
 
-        # Firebase 在真正发送时（push_service.send_to_users 内部）才初始化，
-        # 凭证有问题不会让整次检查直接失败
-        planned = check_snow_alerts(dry_run=dry_run) or []
-
+        results = check_snow_alerts(dry_run=dry_run) or []
         return {
             'statusCode': 200,
             'body': json.dumps({
                 'message': 'Snow alerts dry run' if dry_run else 'Snow alerts checked successfully',
                 'push_enabled': enabled,
-                'alerts': planned,
-            }, ensure_ascii=False)
+                'alerts': [r for r in results if r['action'] == 'send'],
+                'skipped': [r for r in results if r['action'] != 'send'],
+            }, ensure_ascii=False, default=str)
         }
 
     except Exception as e:
@@ -384,6 +238,4 @@ def lambda_handler(event, context):
 
 
 if __name__ == '__main__':
-    # Test locally
-    result = lambda_handler({}, {})
-    print(result)
+    print(lambda_handler({'dry_run': True}, {}))
