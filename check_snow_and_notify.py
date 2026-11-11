@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
-from push_service import send_snow_alert_notification, initialize_firebase, supabase_auth_headers
+from push_service import send_snow_alert_notification, supabase_auth_headers
 
 
 def _supabase_headers():
@@ -122,8 +122,11 @@ def _log_notifications(user_ids, resort_id, notification_date, forecast_date,
     response.raise_for_status()
 
 
-def check_snow_alerts():
+def check_snow_alerts(dry_run=False):
     """Check for snow alerts and send push notifications.
+
+    dry_run=True：完整计算会提醒哪些雪场 / 多少用户，但不写日志、不发送。
+    返回 [{'resort_id','resort','snow_date','snowfall_cm','users'}]（实际发送 / 将要发送的列表）。
 
     1. Read active subscriptions from Supabase
     2. Read latest weather forecast from RDS (resort_weather.forecast_7d)
@@ -136,7 +139,7 @@ def check_snow_alerts():
 
     if not raw_subscriptions:
         print("No active subscriptions, exiting")
-        return
+        return []
 
     # Group by resort_id
     resort_subscribers = {}
@@ -168,6 +171,7 @@ def check_snow_alerts():
     today = datetime.now().date()
     today_str = today.isoformat()
     notifications_sent = 0
+    planned = []
 
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -218,6 +222,18 @@ def check_snow_alerts():
                             print(f"Already notified for {info['name']} snow day {forecast_date_str}, skipping")
                             continue
 
+                        planned.append({
+                            'resort_id': resort_id,
+                            'resort': info['name'],
+                            'snow_date': forecast_date_str,
+                            'snowfall_cm': snowfall,
+                            'users': len(info['users']),
+                        })
+                        if dry_run:
+                            print(f"[DRY RUN] would notify {len(info['users'])} users: "
+                                  f"{info['name']} {snowfall}cm on {forecast_date_str}")
+                            break
+
                         title = f"{info['name']} 降雪预报 ❄️"
                         body = f"{forecast_date.month:02d}月{forecast_date.day:02d}日 预计降雪 {snowfall}cm"
 
@@ -261,13 +277,20 @@ def check_snow_alerts():
     finally:
         conn.close()
 
-    print(f"Done. Sent {notifications_sent} snow alert(s)")
+    print(f"Done. Sent {notifications_sent} snow alert(s)" + (" [DRY RUN]" if dry_run else ""))
+    return planned
 
 
 def lambda_handler(event, context):
-    """Lambda handler for snow alert checking"""
+    """
+    Lambda handler for snow alert checking
+
+    event {"dry_run": true}：上线 / 排查用。忽略开关，只计算会提醒谁，不写日志、不发送。
+    """
+    dry_run = bool((event or {}).get('dry_run'))
     try:
-        if not _is_snow_push_enabled():
+        enabled = _is_snow_push_enabled()
+        if not enabled and not dry_run:
             print("[SKIP] 雪况推送开关关闭，跳过本次检查")
             return {
                 'statusCode': 200,
@@ -276,14 +299,17 @@ def lambda_handler(event, context):
                 })
             }
 
-        initialize_firebase()
-        check_snow_alerts()
+        # Firebase 在真正发送时（push_service.send_to_users 内部）才初始化，
+        # 凭证有问题不会让整次检查直接失败
+        planned = check_snow_alerts(dry_run=dry_run) or []
 
         return {
             'statusCode': 200,
             'body': json.dumps({
-                'message': 'Snow alerts checked successfully'
-            })
+                'message': 'Snow alerts dry run' if dry_run else 'Snow alerts checked successfully',
+                'push_enabled': enabled,
+                'alerts': planned,
+            }, ensure_ascii=False)
         }
 
     except Exception as e:

@@ -68,10 +68,8 @@ App 切换语言时会重新注册 token，更新 locale。
 
 ## 部署顺序
 
-1. **先**部署本仓库的推送 Lambda（dev / prod 两个函数，`deploy.yml` 已覆盖）。新 Lambda 兼容旧格式 payload。
-2. 再在 Supabase SQL Editor 依次执行 155 → 156（Dev、Prod 各一遍；执行前确认两个环境的 `app_settings.push_webhook_url` 已配置：`SELECT public._push_webhook_url();`）。
-   （反过来的话，旧 Lambda 不会回写 outbox 状态，重试任务会造成重复推送。）
-3. 发布新版 App；用户普及后执行 157。
+Prod 上线的完整步骤、验证和回滚见 [`PROD_PUSH_ROLLOUT.md`](PROD_PUSH_ROLLOUT.md)。要点：先部署 Lambda，再执行 155 / 156，
+雪况推送用 `app_settings.snow_push_enabled` 做闸门。部署后用 `scripts/verify_push_deploy.sh dev|prod` 做只读检查。
 
 ## 已知未处理（P0，单独排期）
 

@@ -438,10 +438,17 @@ jobs:
           if [ -z "${{ secrets.DATABASE_URL }}" ]; then
             echo "❌ GitHub secret DATABASE_URL 未配置"; exit 1
           fi
+          # 订阅关系 / 推送 token / 去重日志都在 Prod Supabase。缺这两个变量时
+          # _is_snow_push_enabled() 会判定「Supabase 未配置」，每小时都直接跳过。
+          if [ -z "${{ secrets.PROD_SUPABASE_URL }}" ] || [ -z "${{ secrets.PROD_SUPABASE_SERVICE_KEY }}" ]; then
+            echo "❌ GitHub secret PROD_SUPABASE_URL / PROD_SUPABASE_SERVICE_KEY 未配置"; exit 1
+          fi
           
           # 使用 jq 构建 JSON，正确处理换行符
           jq -n \
             --arg database_url "${{ secrets.DATABASE_URL }}" \
+            --arg supabase_url "${{ secrets.PROD_SUPABASE_URL }}" \
+            --arg supabase_key "${{ secrets.PROD_SUPABASE_SERVICE_KEY }}" \
             --arg firebase_project "${{ secrets.FIREBASE_PROJECT_ID }}" \
             --arg firebase_key_id "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" \
             --arg firebase_key "${{ secrets.FIREBASE_PRIVATE_KEY }}" \
@@ -450,6 +457,8 @@ jobs:
             '{
               Variables: {
                 DATABASE_URL: $database_url,
+                SUPABASE_URL: $supabase_url,
+                SUPABASE_SERVICE_KEY: $supabase_key,
                 FIREBASE_PROJECT_ID: $firebase_project,
                 FIREBASE_PRIVATE_KEY_ID: $firebase_key_id,
                 FIREBASE_PRIVATE_KEY: $firebase_key,
