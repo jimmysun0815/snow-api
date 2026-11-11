@@ -15,18 +15,17 @@ from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
-from push_service import send_snow_alert_notification, initialize_firebase
+from push_service import send_snow_alert_notification, supabase_auth_headers
 
 
 def _supabase_headers():
     """Return headers for Supabase REST API calls."""
-    supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
-    return {
-        'apikey': supabase_key,
-        'Authorization': f'Bearer {supabase_key}',
+    headers = supabase_auth_headers(os.environ.get('SUPABASE_SERVICE_KEY'))
+    headers.update({
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal',
-    }
+    })
+    return headers
 
 
 def _supabase_url():
@@ -86,26 +85,30 @@ def _get_active_subscriptions():
     return response.json()
 
 
-def _check_already_notified(resort_id, notification_date, forecast_date):
-    """Check if we already sent a notification for this resort+date combo today via Supabase."""
+def _check_already_notified(resort_id, forecast_date):
+    """
+    这个雪场的这个降雪日是否已经提醒过。
+
+    以前去重键带 notification_date（=今天），同一个降雪日会在提前 3 / 2 / 1 天
+    各推一次；现在同一个 (雪场, 降雪日) 只推一次。
+    """
     url = f'{_supabase_url()}/rest/v1/snow_notification_logs'
     params = {
         'resort_id': f'eq.{resort_id}',
-        'notification_date': f'eq.{notification_date}',
         'forecast_date': f'eq.{forecast_date}',
         'select': 'id',
         'limit': '1',
     }
-    response = requests.get(url, headers=_supabase_headers(), params=params)
+    response = requests.get(url, headers=_supabase_headers(), params=params, timeout=10)
     response.raise_for_status()
     return len(response.json()) > 0
 
 
-def _log_notification(user_id, resort_id, notification_date, forecast_date,
-                      snow_amount, weather_code, title, body):
-    """Write a notification log entry to Supabase."""
+def _log_notifications(user_ids, resort_id, notification_date, forecast_date,
+                       snow_amount, weather_code, title, body):
+    """批量写通知日志（一次请求）。"""
     url = f'{_supabase_url()}/rest/v1/snow_notification_logs'
-    payload = {
+    payload = [{
         'user_id': user_id,
         'resort_id': resort_id,
         'notification_date': notification_date,
@@ -114,13 +117,16 @@ def _log_notification(user_id, resort_id, notification_date, forecast_date,
         'weather_code': weather_code,
         'notification_title': title,
         'notification_body': body,
-    }
-    response = requests.post(url, headers=_supabase_headers(), json=payload)
+    } for user_id in user_ids]
+    response = requests.post(url, headers=_supabase_headers(), json=payload, timeout=10)
     response.raise_for_status()
 
 
-def check_snow_alerts():
+def check_snow_alerts(dry_run=False):
     """Check for snow alerts and send push notifications.
+
+    dry_run=True：完整计算会提醒哪些雪场 / 多少用户，但不写日志、不发送。
+    返回 [{'resort_id','resort','snow_date','snowfall_cm','users'}]（实际发送 / 将要发送的列表）。
 
     1. Read active subscriptions from Supabase
     2. Read latest weather forecast from RDS (resort_weather.forecast_7d)
@@ -133,7 +139,7 @@ def check_snow_alerts():
 
     if not raw_subscriptions:
         print("No active subscriptions, exiting")
-        return
+        return []
 
     # Group by resort_id
     resort_subscribers = {}
@@ -165,6 +171,7 @@ def check_snow_alerts():
     today = datetime.now().date()
     today_str = today.isoformat()
     notifications_sent = 0
+    planned = []
 
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -211,39 +218,51 @@ def check_snow_alerts():
                         # Found significant snowfall — check dedup via Supabase
                         forecast_date_str = forecast_date.isoformat()
 
-                        if _check_already_notified(resort_id, today_str, forecast_date_str):
-                            print(f"Already notified for {info['name']} on {forecast_date_str}, skipping")
+                        if _check_already_notified(resort_id, forecast_date_str):
+                            print(f"Already notified for {info['name']} snow day {forecast_date_str}, skipping")
                             continue
 
-                        # Send push notification
-                        snow_date_display = forecast_date.strftime('%m月%d日')
-                        print(f"Sending snow alert for {info['name']}: {snowfall}cm on {forecast_date}")
+                        planned.append({
+                            'resort_id': resort_id,
+                            'resort': info['name'],
+                            'snow_date': forecast_date_str,
+                            'snowfall_cm': snowfall,
+                            'users': len(info['users']),
+                        })
+                        if dry_run:
+                            print(f"[DRY RUN] would notify {len(info['users'])} users: "
+                                  f"{info['name']} {snowfall}cm on {forecast_date_str}")
+                            break
 
-                        send_snow_alert_notification(
+                        title = f"{info['name']} 降雪预报 ❄️"
+                        body = f"{forecast_date.month:02d}月{forecast_date.day:02d}日 预计降雪 {snowfall}cm"
+
+                        # 先写日志再发送：如果发送途中 Lambda 超时，下一小时不会重复推送
+                        # （宁可这一次漏推，也不要每小时重复轰炸）
+                        try:
+                            _log_notifications(
+                                user_ids=info['users'],
+                                resort_id=resort_id,
+                                notification_date=today_str,
+                                forecast_date=forecast_date_str,
+                                snow_amount=snowfall,
+                                weather_code=day.get('weather_code'),
+                                title=title,
+                                body=body,
+                            )
+                        except Exception as log_err:
+                            print(f"Failed to write notification logs for {info['name']}, skip sending: {log_err}")
+                            break
+
+                        print(f"Sending snow alert for {info['name']}: {snowfall}cm on {forecast_date}")
+                        result = send_snow_alert_notification(
                             user_ids=info['users'],
                             resort_name=info['name'],
-                            snow_date=snow_date_display,
-                            snow_amount=snowfall
+                            snow_date=forecast_date,
+                            snow_amount=snowfall,
+                            resort_id=resort_id,
                         )
-
-                        # Log to Supabase for each user
-                        title = f"{info['name']} 降雪预报 ❄️"
-                        body = f"{snow_date_display} 预计降雪 {snowfall}cm"
-
-                        for user_id in info['users']:
-                            try:
-                                _log_notification(
-                                    user_id=user_id,
-                                    resort_id=resort_id,
-                                    notification_date=today_str,
-                                    forecast_date=forecast_date_str,
-                                    snow_amount=snowfall,
-                                    weather_code=day.get('weather_code'),
-                                    title=title,
-                                    body=body,
-                                )
-                            except Exception as log_err:
-                                print(f"Failed to log notification for user {user_id}: {log_err}")
+                        print(f"Snow alert result for {info['name']}: {result}")
 
                         notifications_sent += 1
                         print(f"Notified {len(info['users'])} users for {info['name']}")
@@ -258,13 +277,20 @@ def check_snow_alerts():
     finally:
         conn.close()
 
-    print(f"Done. Sent {notifications_sent} snow alert(s)")
+    print(f"Done. Sent {notifications_sent} snow alert(s)" + (" [DRY RUN]" if dry_run else ""))
+    return planned
 
 
 def lambda_handler(event, context):
-    """Lambda handler for snow alert checking"""
+    """
+    Lambda handler for snow alert checking
+
+    event {"dry_run": true}：上线 / 排查用。忽略开关，只计算会提醒谁，不写日志、不发送。
+    """
+    dry_run = bool((event or {}).get('dry_run'))
     try:
-        if not _is_snow_push_enabled():
+        enabled = _is_snow_push_enabled()
+        if not enabled and not dry_run:
             print("[SKIP] 雪况推送开关关闭，跳过本次检查")
             return {
                 'statusCode': 200,
@@ -273,14 +299,17 @@ def lambda_handler(event, context):
                 })
             }
 
-        initialize_firebase()
-        check_snow_alerts()
+        # Firebase 在真正发送时（push_service.send_to_users 内部）才初始化，
+        # 凭证有问题不会让整次检查直接失败
+        planned = check_snow_alerts(dry_run=dry_run) or []
 
         return {
             'statusCode': 200,
             'body': json.dumps({
-                'message': 'Snow alerts checked successfully'
-            })
+                'message': 'Snow alerts dry run' if dry_run else 'Snow alerts checked successfully',
+                'push_enabled': enabled,
+                'alerts': planned,
+            }, ensure_ascii=False)
         }
 
     except Exception as e:
