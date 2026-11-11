@@ -61,7 +61,9 @@ with mock.patch.object(ps.requests,'get',fake_get), mock.patch.object(ps.request
     en=[m for m in sent if 'valid' in m.token][0]
     assert en.notification.title=='New match nearby' and en.apns.payload.aps.badge==4 and en.apns.payload.aps.thread_id=='tennis_activity_nearby'
     assert json.loads(en.data['template_params'])['host_name']=='Amy'
-    dels=[c for c in calls if c[0]=='DELETE']; assert 'tok_dead' in dels[0][2]['token'], dels
+    assert not [c for c in calls if c[0]=='DELETE'], '不应直接 DELETE device_tokens'
+    retire=[c for c in calls if c[0]=='POST' and c[1].endswith('retire_device_tokens')]
+    assert retire and retire[0][2]['p_tokens']==['tok_dead_bbbbbbbbbbbbbb'], retire
     # processor: outbox path → claim then mark sent
     calls.clear(); sent.clear()
     ev={'body':json.dumps({'type':'INSERT','table':'push_outbox','record':{'id':42,'user_id':'u1','notification_type':'tennis_activity_nearby','title':'t','body':'b','data':d}}),'headers':{}}

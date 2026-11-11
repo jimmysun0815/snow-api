@@ -63,12 +63,12 @@ App 切换语言时会重新注册 token，更新 locale。
 
 - `token` 全局唯一；App 通过 RPC `register_device_token(p_token, p_platform, p_locale)` 注册，
   同一台手机换账号登录时 token 自动转给新账号。
-- 目前仍保留 `(user_id, platform)` 唯一约束以兼容旧版 App；执行 `157_device_tokens_multi_device.sql`
+- 目前仍保留 `(user_id, platform)` 唯一约束以兼容旧版 App；执行 `158_device_tokens_multi_device.sql`
   后同一用户可以多台设备同时收推送。
 
 ## 部署顺序
 
-Prod 上线的完整步骤、验证和回滚见 [`PROD_PUSH_ROLLOUT.md`](PROD_PUSH_ROLLOUT.md)。要点：先部署 Lambda，再执行 155 / 156，
+Prod 上线的完整步骤、验证和回滚见 [`PROD_PUSH_ROLLOUT.md`](PROD_PUSH_ROLLOUT.md)。要点：先部署 Lambda，再执行 155 / 156 / 157，
 雪况推送用 `app_settings.snow_push_enabled` 做闸门。部署后用 `scripts/verify_push_deploy.sh dev|prod` 做只读检查。
 
 ## 已知未处理（P0，单独排期）

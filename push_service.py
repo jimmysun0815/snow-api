@@ -161,20 +161,18 @@ def get_user_tokens(user_id: str) -> List[str]:
 
 
 def delete_invalid_tokens(tokens: List[str]):
-    """删除失效的 FCM token（批量）。"""
+    """
+    FCM 判定失效的 token：移到 device_tokens_backup_155（迁移 157 的 retire_device_tokens），
+    不直接删除。RPC 不存在（157 之前）或调用失败时什么都不做 —— 失效 token 留着无害，
+    下次发送 FCM 还会再报失效。
+    """
     if not tokens:
         return
     try:
-        resp = requests.delete(
-            f'{_sb_url()}/rest/v1/device_tokens',
-            headers=_sb_headers(),
-            params={'token': _in_filter(tokens)},
-            timeout=HTTP_TIMEOUT,
-        )
-        resp.raise_for_status()
-        print(f"🗑️  已删除 {len(tokens)} 个失效 token")
+        moved = sb_rpc('retire_device_tokens', {'p_tokens': tokens, 'p_reason': 'invalid FCM token'})
+        print(f"🗄️  {moved} 个失效 token 已移到备份表")
     except Exception as e:
-        print(f"❌ 删除失效 token 失败: {e}")
+        print(f"⚠️  失效 token 未移走（保留原样）: {e}")
 
 
 def get_badge_counts(user_ids: List[str]) -> Dict[str, Optional[int]]:
@@ -512,6 +510,12 @@ def healthcheck() -> Dict:
         out['supabase'] = 'ok'
     except Exception as e:
         out['supabase'] = f'error: {type(e).__name__}: {e}'
+    try:
+        # 空数组：只验证 RPC 存在且有权限，不会移动任何 token（迁移 157 之前会报错）
+        sb_rpc('retire_device_tokens', {'p_tokens': [], 'p_reason': 'healthcheck'})
+        out['retire_rpc'] = 'ok'
+    except Exception as e:
+        out['retire_rpc'] = f'missing/error: {type(e).__name__}'
     try:
         initialize_firebase()
         messaging.send(messaging.Message(token='healthcheck-invalid-token', data={'ping': '1'}), dry_run=True)

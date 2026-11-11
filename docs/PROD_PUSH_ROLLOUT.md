@@ -3,9 +3,19 @@
 涉及两个仓库的 `fix/push-p1-p2` 分支：
 
 - **snow-api**（本仓库）：推送 Lambda、snow-checker、`deploy.yml`、terraform
-- **snow-app**：迁移 155 / 156 / 157、执行脚本、App 端推送代码
+- **snow-app**：迁移 155 / 156 / 157（以及以后的 158）、执行脚本、App 端推送代码
 
-Dev 已于 2026-11-08 至 11-11 全部验证：数据库 155 / 156、推送 Lambda、真机私信推送、本地雪况测试推送。
+Dev 已于 2026-11-08 至 11-11 全部验证：数据库 155 / 156 / 157、推送 Lambda、真机私信推送、本地雪况测试推送。
+
+## 数据保证
+
+- 业务数据（用户、帖子、私信、通知、订阅等）：这次没有任何语句删除或修改它们。
+- `device_tokens`：**只移不删**。去重（155）、换账号 / 同平台被挤掉（157 触发器 / RPC）、FCM 判定失效（Lambda 调用
+  `retire_device_tokens`）的行，一律先移到 `device_tokens_backup_155`，需要时可以用回滚脚本原样放回。
+- 执行前，`backup_20261108` schema 里还有一份 `device_tokens` 全表、18 个函数的原定义和 cron 任务的备份。
+- 唯一会被自动清理的是新建的 `push_outbox`：已结束的行 14 天后删除。它是这次新加的投递记录，不是用户数据。
+- 新版 App 还没发布时，旧版 App 的保存 token、收推送都照常工作（157 让旧版 App 换账号登录时 token 也能正确转给新账号）。
+
 
 ---
 
@@ -41,28 +51,29 @@ AWS_PROFILE=pp ./scripts/verify_push_deploy.sh dev
 
 通过的标准：
 
-- 推送 Lambda 的环境变量齐全，健康检查结果为 `{"supabase": "ok", "firebase": "ok"}`
+- 推送 Lambda 的环境变量齐全，健康检查里 `supabase` 和 `firebase` 都是 `ok`（`retire_rpc` 在 157 执行前会显示 missing，属于正常）
 - snow-checker 的环境变量齐全，dry_run 的 `push_enabled=false`（第 0 步关掉的），并列出「现在跑的话会提醒哪些雪场 / 多少人」
 
 新 Lambda 兼容旧格式的 payload，所以这一步完成后、155 执行前，Prod 推送照常工作。
 
-## 2. Prod 数据库执行 155 / 156
+## 2. Prod 数据库执行 155 / 156 / 157
 
 ```bash
 cd app/snow_resort_app
-./supabase/scripts/apply_155_156.sh prod
+./supabase/scripts/apply_push_migrations.sh prod
 ```
 
 脚本在临时目录 link Prod，不会改动主目录的 link。流程如下：
 
 1. 拉取远端迁移历史
-2. dry-run，确认待执行的只有 155 / 156
+2. dry-run，确认待执行的只有 155 / 156 / 157
 3. 要求输入 `prod` 确认
 4. 执行，每一步都有检查：
    - 前置检查：`push_webhook_url` 必须是 Prod 的地址；18 个函数必须与 154 逐字一致。任何一项不通过就中止，此时没有做任何改动。脚本还会打印 `snow_push_enabled` 的当前值。
    - 库内备份到 `backup_20261108`
    - 校验：device_tokens 行数守恒、没有函数直接调用 Lambda、权限 / owner / cron 正确。任何一项不通过就回滚该文件。
    - 冒烟测试：随机 user_id 入队
+   - 157 自检：在子事务里模拟「旧版 App 在别人登录过的手机上登录」，验证 token 转给新账号、旧行进了备份表，然后回滚这个子事务，不留痕迹
 
 然后到 CloudWatch `/aws/lambda/resort-data-prod-notification-processor` 确认出现 `outbox N → skipped (no devices)`，
 再用真机发一条私信确认能收到。
@@ -88,9 +99,9 @@ UPDATE public.app_settings SET value = 'true'::jsonb, updated_at = now() WHERE k
 
 旧版本 App 不升级也能继续收推送。
 
-## 5. 以后：157（多设备推送）
+## 5. 以后：158（多设备推送）
 
-新版本普及后，再执行 `157_device_tokens_multi_device.sql`。在此之前，一个账号在每个平台上只有最后登录的那台设备能收到推送。
+新版本普及后，再执行 `158_device_tokens_multi_device.sql`。在此之前，一个账号在每个平台上只有最后登录的那台设备能收到推送。
 
 ---
 
@@ -99,7 +110,7 @@ UPDATE public.app_settings SET value = 'true'::jsonb, updated_at = now() WHERE k
 | 出问题的环节 | 怎么回滚 | 生效时间 |
 |---|---|---|
 | 雪况推送发得不对 | `UPDATE app_settings SET value='false'::jsonb WHERE key='snow_push_enabled';` | 下一个整点 |
-| 155 / 156 | Prod SQL Editor 执行 app 仓库 `supabase/scripts/rollback_155_156.sql`：从备份恢复 18 个函数、停掉重试任务、放回去重时移走的 token | 立即 |
+| 155 / 156 / 157 | Prod SQL Editor 执行 app 仓库 `supabase/scripts/rollback_155_156.sql`：从备份恢复 18 个函数、撤掉 157 触发器、停掉重试任务、把备份表里的 token 放回原表 | 立即 |
 | Lambda 代码 | 在 main 上 revert 这次合并 → `deploy.yml` 重新部署旧代码（注意：旧代码对 Prod 新格式的 `sb_secret_` key 可能返回 401） | 部署完成后 |
 | App | 无需回滚（新旧版本都兼容） | — |
 
