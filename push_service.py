@@ -531,10 +531,10 @@ def healthcheck() -> Dict:
 # 降雪提醒
 # =====================================================
 
-def send_snow_alert_notification(user_ids: List[str], resort_name: str, snow_date,
-                                 snow_amount: float, resort_id=None) -> Dict:
+def build_snow_alert(resort_name: str, snow_date, snow_amount, resort_id=None) -> Dict:
     """
-    降雪提醒。snow_date 可以是 date / ISO 字符串，或旧调用方传的展示字符串（如 '02月20日'）。
+    组装降雪提醒的 notification_type / title / body / data（中文兜底文案 + 多语言模板参数）。
+    snow_date 可以是 date / ISO 字符串，或旧调用方传的展示字符串（如 '02月20日'）。
     """
     if isinstance(snow_date, (date, datetime)):
         snow_date_iso = snow_date.isoformat()[:10]
@@ -543,7 +543,10 @@ def send_snow_alert_notification(user_ids: List[str], resort_name: str, snow_dat
         snow_date_iso = str(snow_date)
         zh_date = str(snow_date)
 
-    amount = f'{snow_amount:g}' if isinstance(snow_amount, (int, float)) else str(snow_amount)
+    if isinstance(snow_amount, (int, float)):
+        amount = f'{round(float(snow_amount), 1):g}'
+    else:
+        amount = str(snow_amount)
     data = {
         'type': 'snow_alert',
         'resort_name': resort_name,
@@ -560,14 +563,40 @@ def send_snow_alert_notification(user_ids: List[str], resort_name: str, snow_dat
             'snow_date_iso': snow_date_iso,
             'snow_amount': amount,
         }
+    return {
+        'notification_type': 'snow_alert',
+        'title': f'❄️ {resort_name} 降雪预报',
+        'body': f'{zh_date} 预计降雪 {amount}cm',
+        'data': data,
+    }
 
-    return send_to_users(
-        user_ids=user_ids,
-        title=f'❄️ {resort_name} 降雪预报',
-        body=f'{zh_date} 预计降雪 {amount}cm',
-        data=data,
-        notification_type='snow_alert',
-    )
+
+def send_snow_alert_notification(user_ids: List[str], resort_name: str, snow_date,
+                                 snow_amount: float, resort_id=None) -> Dict:
+    """直接发送降雪提醒（本地测试接口用；snow-checker 走 push_outbox，见 enqueue_snow_alert）。"""
+    alert = build_snow_alert(resort_name, snow_date, snow_amount, resort_id)
+    return send_to_users(user_ids=user_ids, title=alert['title'], body=alert['body'],
+                         data=alert['data'], notification_type=alert['notification_type'])
+
+
+def enqueue_snow_alert(user_ids: List[str], resort_name: str, snow_date, snow_amount,
+                       resort_id=None, reason: Optional[str] = None) -> Dict:
+    """
+    降雪提醒经 push_outbox 发送（迁移 159 之后）：每个用户一行，由推送 Lambda 投递，
+    自动重试、按设备语言渲染，并在 admin「推送监控」里能查到来源和原因。
+    返回 {'queued': [user_id...], 'failed': [user_id...]}；enqueue_push 不可用时 failed 里是全部用户。
+    """
+    alert = build_snow_alert(resort_name, snow_date, snow_amount, resort_id)
+    queued, failed = [], []
+    for uid in dict.fromkeys(user_ids):
+        record = dict(alert, user_id=uid, source='snow-checker', reason=reason)
+        try:
+            outbox_id = sb_rpc('enqueue_push', {'p_payload': {'record': record}})
+        except Exception as e:
+            print(f"⚠️  enqueue_push 不可用: {type(e).__name__}: {e}")
+            outbox_id = None
+        (queued if outbox_id else failed).append(uid)
+    return {'queued': queued, 'failed': failed}
 
 
 if __name__ == '__main__':

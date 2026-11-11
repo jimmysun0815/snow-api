@@ -48,7 +48,10 @@ if [[ "${ENV}" == "prod" ]]; then
   aws lambda invoke --function-name "${SC}" --payload "fileb://${T}/dry.json" "${R[@]}" "${T}/dry_out.json" >/dev/null
   BODY=$(jq -r '.body' "${T}/dry_out.json")
   echo "  dry_run: push_enabled=$(echo "${BODY}" | jq -r 'if has("push_enabled") then (.push_enabled|tostring) else "?" end')"
-  echo "${BODY}" | jq -r '.alerts[]? | "    会提醒 \(.resort)：\(.snow_date) 预计 \(.snowfall_cm)cm → \(.users) 人"'
+  echo "  将发送（$(echo "${BODY}" | jq '.alerts | length') 个雪场）："
+  echo "${BODY}" | jq -r '.alerts[]? | "    ✓ \(.resort)：\(.snow_date) 预计 \(.snowfall_cm)cm，状态 \(.condition_status)（\(.condition_at // "-")）→ \(.users) 人"'
+  echo "  跳过（$(echo "${BODY}" | jq '.skipped | length // 0') 个雪场）："
+  echo "${BODY}" | jq -r '.skipped[]? | "    · \(.resort)：\(.skip_reason)"'
   echo "${BODY}" | jq -e '.alerts' >/dev/null || { echo "  ❌ dry_run 失败: ${BODY}"; FAIL=1; }
 fi
 

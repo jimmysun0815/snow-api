@@ -70,7 +70,7 @@ with mock.patch.object(ps.requests,'get',fake_get), mock.patch.object(ps.request
     out=sp.lambda_handler(ev,None); print('lambda',out)
     rpcs=[(c[1].rsplit('/',1)[1],c[2]) for c in calls if c[0]=='POST']
     print(rpcs)
-    assert rpcs[0][0]=='push_outbox_claim' and rpcs[-1]==('push_outbox_mark',{'p_id':42,'p_status':'sent','p_error':None})
+    assert rpcs[0][0]=='push_outbox_claim' and rpcs[-1][0]=='push_outbox_mark' and rpcs[-1][1]['p_status']=='sent' and rpcs[-1][1]['p_detail']['success_count']==1, rpcs[-1]
     # legacy payload (no outbox) → no claim
     calls.clear()
     ev2={'body':json.dumps({'type':'INSERT','table':'push_notification_queue','record':{'user_id':'u1','title':'t','body':'b','data':{}}}),'headers':{}}
@@ -84,11 +84,21 @@ with mock.patch.object(ps.requests,'get',fake_get), mock.patch.object(ps.request
 # Firebase 凭证坏掉：不应崩溃，应记为 failed（可重试）并写明原因
 with mock.patch.object(ps.requests,'get',fake_get), mock.patch.object(ps.requests,'post',fake_post), \
      mock.patch.object(ps,'initialize_firebase',mock.Mock(side_effect=ValueError('Could not deserialize key data'))):
-    st,err=sp.process_notification({'user_id':'u1','title':'t','body':'b','data':{}})
+    st,err,_=sp.process_notification({'user_id':'u1','title':'t','body':'b','data':{}})
     assert st=='failed' and 'deserialize' in err,(st,err)
 assert ps.supabase_auth_headers('sb_secret_x')=={'apikey':'sb_secret_x'}
 assert ps.supabase_auth_headers('eyJabc')['Authorization']=='Bearer eyJabc'
 # 未读数为 0 → 不设置角标（不能把角标清零）
 with mock.patch.object(ps,'sb_rpc',return_value=[{'user_id':'u1','unread':0},{'user_id':'u2','unread':3}]):
     assert ps.get_badge_counts(['u1','u2'])=={'u2':3}
+# 迁移 159 之前 push_outbox_mark 没有 p_detail（404）→ 退回 3 参数调用
+import requests as _rq
+_calls=[]
+def _rpc(name, params):
+    _calls.append(params)
+    if 'p_detail' in params:
+        r=_rq.Response(); r.status_code=404; raise _rq.HTTPError(response=r)
+with mock.patch.object(sp,'sb_rpc',_rpc):
+    sp._mark(7,'sent',None,{'success_count':1})
+assert len(_calls)==2 and 'p_detail' not in _calls[1], _calls
 print('ALL OK')

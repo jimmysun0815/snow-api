@@ -105,6 +105,20 @@ UPDATE public.app_settings SET value = 'true'::jsonb, updated_at = now() WHERE k
 
 ---
 
+## 第二批（2026-11-11）：雪况只推已开放雪场 + 推送监控
+
+起因：第一次 dry_run 列出的 25 个雪场都还没开放。
+
+1. **Prod 数据库执行 159 / 160**：`./supabase/scripts/apply_push_migrations.sh prod`
+   - 159：push_outbox 记录来源 / 触发人 / 原因 / 发送结果，保留 90 天，`push_stats`
+   - 160：`snow_alert_candidates()`，新增「雪场必须开放（最新雪况 open / partial 且 72 小时内采集）」
+   - 旧 Lambda、旧 snow-checker 都兼容，所以可以先执行
+2. **合并 snow-api 的 PR #9**：snow-checker 改用 `snow_alert_candidates()` 判断，经 push_outbox 发送（带原因，可在后台查到）；
+   读取开关失败时按关闭处理；推送 Lambda 回写发送结果
+3. **合并 admin 的「推送监控」PR**：后台新增「推送监控」页（统计 / 推送记录 / 即将发送），并修复系统设置页开关总显示「关」的 bug
+4. `AWS_PROFILE=pp ./scripts/verify_push_deploy.sh prod`：dry_run 会分别列出「将发送」和「跳过（原因）」
+5. 在后台「推送监控 → 即将发送」确认名单后，在「系统设置」打开雪况推送
+
 ## 回滚
 
 | 出问题的环节 | 怎么回滚 | 生效时间 |
