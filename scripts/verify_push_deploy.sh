@@ -47,7 +47,7 @@ if [[ "${ENV}" == "prod" ]]; then
   echo '{"dry_run":true}' > "${T}/dry.json"
   aws lambda invoke --function-name "${SC}" --payload "fileb://${T}/dry.json" "${R[@]}" "${T}/dry_out.json" >/dev/null
   BODY=$(jq -r '.body' "${T}/dry_out.json")
-  echo "  dry_run: push_enabled=$(echo "${BODY}" | jq -r '.push_enabled // "?"')"
+  echo "  dry_run: push_enabled=$(echo "${BODY}" | jq -r 'if has("push_enabled") then (.push_enabled|tostring) else "?" end')"
   echo "${BODY}" | jq -r '.alerts[]? | "    会提醒 \(.resort)：\(.snow_date) 预计 \(.snowfall_cm)cm → \(.users) 人"'
   echo "${BODY}" | jq -e '.alerts' >/dev/null || { echo "  ❌ dry_run 失败: ${BODY}"; FAIL=1; }
 fi
