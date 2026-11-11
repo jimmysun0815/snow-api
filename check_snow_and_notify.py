@@ -73,16 +73,57 @@ def _is_snow_push_enabled():
     return True
 
 
+PAGE_SIZE = 1000   # PostgREST 默认单次最多返回 1000 行，超出部分会被静默截断，所以要分页
+
+
 def _get_active_subscriptions():
-    """Fetch all active resort subscriptions from Supabase, with resort name."""
+    """
+    Fetch all active resort subscriptions from Supabase, with resort name.
+
+    不用 PostgREST 关联查询 resorts(name)：Prod 的 resort_subscriptions.resort_id 没有指向
+    resorts 的外键（订阅表比 151 迁过来的 resorts 表早），关联查询会返回 400。
+    改为两步：分页查订阅，再按 resort_id 分批查名字。返回形状不变：
+    [{'resort_id', 'user_id', 'resorts': {'name'} | None}]
+    """
     url = f'{_supabase_url()}/rest/v1/resort_subscriptions'
-    params = {
-        'is_active': 'eq.true',
-        'select': 'resort_id,user_id,resorts(name)',
-    }
-    response = requests.get(url, headers=_supabase_headers(), params=params)
-    response.raise_for_status()
-    return response.json()
+    subs, offset = [], 0
+    while True:
+        params = {
+            'is_active': 'eq.true',
+            'select': 'id,resort_id,user_id',
+            'order': 'id',
+            'limit': str(PAGE_SIZE),
+            'offset': str(offset),
+        }
+        response = requests.get(url, headers=_supabase_headers(), params=params, timeout=10)
+        response.raise_for_status()
+        page = response.json()
+        subs.extend(page)
+        if len(page) < PAGE_SIZE:
+            break
+        offset += PAGE_SIZE
+
+    names = {}
+    resort_ids = sorted({s['resort_id'] for s in subs})
+    for i in range(0, len(resort_ids), 200):
+        chunk = resort_ids[i:i + 200]
+        response = requests.get(
+            f'{_supabase_url()}/rest/v1/resorts',
+            headers=_supabase_headers(),
+            params={'id': f'in.({",".join(str(r) for r in chunk)})', 'select': 'id,name'},
+            timeout=10,
+        )
+        response.raise_for_status()
+        names.update({r['id']: r['name'] for r in response.json()})
+
+    return [
+        {
+            'resort_id': s['resort_id'],
+            'user_id': s['user_id'],
+            'resorts': {'name': names[s['resort_id']]} if s['resort_id'] in names else None,
+        }
+        for s in subs
+    ]
 
 
 def _check_already_notified(resort_id, forecast_date):
@@ -106,7 +147,12 @@ def _check_already_notified(resort_id, forecast_date):
 
 def _log_notifications(user_ids, resort_id, notification_date, forecast_date,
                        snow_amount, weather_code, title, body):
-    """批量写通知日志（一次请求）。"""
+    """
+    批量写通知日志（一次请求），返回「这次真正新写入」的 user_id 列表。
+
+    snow_notification_logs 有唯一约束 (user_id, resort_id, notification_date)：已存在的行跳过
+    （ignore-duplicates），不会让整批失败；只给新写入的用户发送 —— 同一用户同一雪场一天最多一条。
+    """
     url = f'{_supabase_url()}/rest/v1/snow_notification_logs'
     payload = [{
         'user_id': user_id,
@@ -117,9 +163,18 @@ def _log_notifications(user_ids, resort_id, notification_date, forecast_date,
         'weather_code': weather_code,
         'notification_title': title,
         'notification_body': body,
-    } for user_id in user_ids]
-    response = requests.post(url, headers=_supabase_headers(), json=payload, timeout=10)
+    } for user_id in dict.fromkeys(user_ids)]
+    headers = _supabase_headers()
+    headers['Prefer'] = 'return=representation,resolution=ignore-duplicates'
+    response = requests.post(
+        url,
+        headers=headers,
+        params={'on_conflict': 'user_id,resort_id,notification_date', 'select': 'user_id'},
+        json=payload,
+        timeout=10,
+    )
     response.raise_for_status()
+    return [r['user_id'] for r in response.json()]
 
 
 def check_snow_alerts(dry_run=False):
@@ -151,7 +206,8 @@ def check_snow_alerts(dry_run=False):
                 'name': resort_name,
                 'users': []
             }
-        resort_subscribers[resort_id]['users'].append(sub['user_id'])
+        if sub['user_id'] not in resort_subscribers[resort_id]['users']:   # 重复订阅只算一次
+            resort_subscribers[resort_id]['users'].append(sub['user_id'])
 
     print(f"Grouped into {len(resort_subscribers)} resorts")
 
@@ -240,7 +296,7 @@ def check_snow_alerts(dry_run=False):
                         # 先写日志再发送：如果发送途中 Lambda 超时，下一小时不会重复推送
                         # （宁可这一次漏推，也不要每小时重复轰炸）
                         try:
-                            _log_notifications(
+                            new_users = _log_notifications(
                                 user_ids=info['users'],
                                 resort_id=resort_id,
                                 notification_date=today_str,
@@ -254,9 +310,14 @@ def check_snow_alerts(dry_run=False):
                             print(f"Failed to write notification logs for {info['name']}, skip sending: {log_err}")
                             break
 
-                        print(f"Sending snow alert for {info['name']}: {snowfall}cm on {forecast_date}")
+                        if not new_users:
+                            print(f"All {len(info['users'])} users of {info['name']} already notified today, skip")
+                            break
+
+                        print(f"Sending snow alert for {info['name']} to {len(new_users)} users: "
+                              f"{snowfall}cm on {forecast_date}")
                         result = send_snow_alert_notification(
-                            user_ids=info['users'],
+                            user_ids=new_users,
                             resort_name=info['name'],
                             snow_date=forecast_date,
                             snow_amount=snowfall,
@@ -265,7 +326,7 @@ def check_snow_alerts(dry_run=False):
                         print(f"Snow alert result for {info['name']}: {result}")
 
                         notifications_sent += 1
-                        print(f"Notified {len(info['users'])} users for {info['name']}")
+                        print(f"Notified {len(new_users)} users for {info['name']}")
 
                         # Only notify once per resort per run (the earliest snow day found)
                         break
