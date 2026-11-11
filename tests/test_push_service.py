@@ -86,4 +86,7 @@ with mock.patch.object(ps.requests,'get',fake_get), mock.patch.object(ps.request
     assert st=='failed' and 'deserialize' in err,(st,err)
 assert ps.supabase_auth_headers('sb_secret_x')=={'apikey':'sb_secret_x'}
 assert ps.supabase_auth_headers('eyJabc')['Authorization']=='Bearer eyJabc'
+# 未读数为 0 → 不设置角标（不能把角标清零）
+with mock.patch.object(ps,'sb_rpc',return_value=[{'user_id':'u1','unread':0},{'user_id':'u2','unread':3}]):
+    assert ps.get_badge_counts(['u1','u2'])=={'u2':3}
 print('ALL OK')

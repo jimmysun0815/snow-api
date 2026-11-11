@@ -184,7 +184,9 @@ def get_badge_counts(user_ids: List[str]) -> Dict[str, Optional[int]]:
         return {}
     try:
         rows = sb_rpc('push_badge_counts', {'p_user_ids': user_ids}) or []
-        return {r['user_id']: int(r['unread']) for r in rows}
+        # 未读数为 0 时不设置角标（None = iOS 保持原样）：私信不写 notifications 行，
+        # 如果发 badge=0，新私信到达时反而会把角标清掉
+        return {r['user_id']: int(r['unread']) for r in rows if int(r['unread']) > 0}
     except Exception as e:
         print(f"⚠️  获取角标数失败: {e}")
         return {}
