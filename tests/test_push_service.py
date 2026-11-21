@@ -101,4 +101,25 @@ def _rpc(name, params):
 with mock.patch.object(sp,'sb_rpc',_rpc):
     sp._mark(7,'sent',None,{'success_count':1})
 assert len(_calls)==2 and 'p_detail' not in _calls[1], _calls
+# ---- 新闻推送 / 每日早报（迁移 162）：英文用数据库给的 en_title / en_body ----
+nd={'type':'resort_news','news_id':'n1','template_params':{'en_title':'📰 Palisades Tahoe','en_body':'Palisades opens today'}}
+assert ps.render_for_locale('zh','resort_news',nd,'📰 Palisades Tahoe','Palisades 今日开放')==('📰 Palisades Tahoe','Palisades 今日开放')
+assert ps.render_for_locale('en','resort_news',nd,'📰 Palisades Tahoe','Palisades 今日开放')==('📰 Palisades Tahoe','Palisades opens today')
+dd={'type':'daily_digest','template_params':json.dumps({'en_title':'☀️ Good morning!','en_body':''})}
+assert ps.render_for_locale('en','daily_digest',dd,'☀️ 早安','中文')==('☀️ Good morning!','中文')
+assert ps.render_for_locale('en','daily_digest',{'type':'daily_digest'},'☀️ 早安','中文')[0]=='☀️ Good morning!'
+
+# ---- 免打扰：太平洋时间 22:00~07:00，与 zoneinfo 逐点比对（覆盖两次夏令时切换） ----
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+la=ZoneInfo('America/Los_Angeles')
+t=datetime(2026,1,1,tzinfo=timezone.utc)
+while t<datetime(2028,1,1,tzinfo=timezone.utc):
+    want=t.astimezone(la).replace(tzinfo=None)
+    assert ps.pacific_now(t)==want,(t,ps.pacific_now(t),want)
+    assert ps.is_quiet_hours(t)==(want.hour>=22 or want.hour<7),t
+    t+=timedelta(minutes=15)
+assert ps.is_quiet_hours(datetime(2026,11,21,6,0))          # naive = UTC → 22:00 PST
+assert not ps.is_quiet_hours(datetime(2026,11,21,15,0))     # 07:00 PST
+assert ps.is_quiet_hours(datetime(2026,7,1,13,59,tzinfo=timezone.utc))  # 06:59 PDT
 print('ALL OK')

@@ -19,12 +19,13 @@ CANDIDATES = [
 ]
 
 
-def run(event, enabled, log_ret=('u2',), enq_ret=None):
+def run(event, enabled, log_ret=('u2',), enq_ret=None, quiet=False):
     log = mock.Mock(return_value=list(log_ret))
     enq = mock.Mock(return_value=enq_ret or {'queued': list(log_ret), 'failed': []})
     direct = mock.Mock()
     with mock.patch.object(sc, '_get_candidates', return_value=CANDIDATES), \
          mock.patch.object(sc, '_is_snow_push_enabled', return_value=enabled), \
+         mock.patch.object(sc, 'is_quiet_hours', return_value=quiet), \
          mock.patch.object(sc, '_log_notifications', log), \
          mock.patch.object(sc, 'enqueue_snow_alert', enq), \
          mock.patch.object(sc, 'send_snow_alert_notification', direct):
@@ -50,6 +51,12 @@ assert enq.call_args.args[0] == ['u2']
 assert enq.call_args.kwargs['resort_id'] == 1 and '降雪提醒：Whistler' in enq.call_args.kwargs['reason']
 assert enq.call_args.args[2] == date(2026, 11, 13)
 assert not direct.called
+
+# 免打扰时段：开关打开也不查候选、不发送；试运行不受影响
+body, log, enq, direct = run({}, enabled=True, quiet=True)
+assert 'Quiet hours' in body['message'] and not log.called and not enq.called and not direct.called
+body, log, enq, direct = run({'dry_run': True}, enabled=True, quiet=True)
+assert [a['resort'] for a in body['alerts']] == ['Whistler'] and not enq.called
 
 # 入队失败 → 退回直接发送
 body, log, enq, direct = run({}, enabled=True, enq_ret={'queued': [], 'failed': ['u2']})

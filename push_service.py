@@ -18,7 +18,7 @@ Firebase Push Notification Service
 
 import os
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import firebase_admin
@@ -27,6 +27,39 @@ import requests
 
 FCM_BATCH_SIZE = 500          # send_each 单次上限
 HTTP_TIMEOUT = 10             # Supabase REST 超时（秒）
+
+
+# =====================================================
+# 免打扰时段（与迁移 162 的 push_quiet_hours() 一致）
+# =====================================================
+# 太平洋时间 22:00 ~ 07:00（= 美东 01:00 ~ 10:00）。降雪提醒 / 新闻推送在此时段内不发。
+# 不依赖 zoneinfo：Lambda 运行时不一定带 tzdata，直接按美国夏令时规则计算
+# （3 月第二个周日 02:00 开始，11 月第一个周日 02:00 结束）。
+QUIET_START_HOUR = 22
+QUIET_END_HOUR = 7
+
+
+def _nth_sunday(year: int, month: int, n: int) -> date:
+    first = date(year, month, 1)
+    return first + timedelta(days=(6 - first.weekday()) % 7 + 7 * (n - 1))
+
+
+def pacific_now(now: Optional[datetime] = None) -> datetime:
+    """当前太平洋时间（naive datetime）。now 不带时区时按 UTC 处理。"""
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    utc = now.astimezone(timezone.utc).replace(tzinfo=None)
+    y = utc.year
+    dst_start = datetime.combine(_nth_sunday(y, 3, 2), datetime.min.time()) + timedelta(hours=10)  # 02:00 PST = 10:00 UTC
+    dst_end = datetime.combine(_nth_sunday(y, 11, 1), datetime.min.time()) + timedelta(hours=9)    # 02:00 PDT = 09:00 UTC
+    offset = -7 if dst_start <= utc < dst_end else -8
+    return utc + timedelta(hours=offset)
+
+
+def is_quiet_hours(now: Optional[datetime] = None) -> bool:
+    h = pacific_now(now).hour
+    return h >= QUIET_START_HOUR or h < QUIET_END_HOUR
 
 
 # =====================================================
@@ -211,6 +244,8 @@ TYPE_TO_TEMPLATE = {
     'accommodation_rejected': 'notifAccommodationRejected',
     'accommodation_signup_rejected': 'notifAccommodationRejected',
     'snow_alert': 'notifSnowAlert',
+    'resort_news': 'notifResortNews',
+    'daily_digest': 'notifDailyDigest',
     'feed_reply': 'notifFeedReply',
     'feed_mention': 'notifFeedMention',
     'comment_reply': 'notifCommentReply',
@@ -243,6 +278,8 @@ EN_TEMPLATES: Dict[str, Tuple[str, str]] = {
     'notifAccommodationApproved': ('✅ Room request approved', 'Your room request was approved'),
     'notifAccommodationRejected': ('❌ Room request declined', 'Sorry, your room request was declined'),
     'notifSnowAlert': ('❄️ Snow alert', 'New snowfall information'),
+    'notifResortNews': ('📰 Resort update', 'New update from a resort you follow'),
+    'notifDailyDigest': ('☀️ Good morning!', 'Your daily resort report is ready'),
     'notifCommentReply': ('Someone replied to your comment', 'See the new reply'),
     'notifFeedReply': ('Someone replied to your post', 'See the new reply'),
     'notifFeedMention': ('Someone mentioned you', 'See what they said'),
@@ -303,6 +340,10 @@ def render_for_locale(locale: Optional[str], notification_type: Optional[str],
 
     if lang != 'en':
         return title, body
+
+    # 新闻推送 / 每日早报（迁移 162）：英文文案由数据库直接给出
+    if params.get('en_title'):
+        return params['en_title'], params.get('en_body') or body
 
     # 私信：标题是昵称、文字消息是原文；只翻译图片 / 其他类型的占位文案
     if data.get('type') == 'message':

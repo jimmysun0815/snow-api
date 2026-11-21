@@ -13,7 +13,9 @@ Snow Alert Checker（EventBridge 每小时）
 再经 push_outbox 入队（迁移 159），由推送 Lambda 投递 —— 自动重试、按设备语言渲染，
 admin 里能查到来源（snow-checker）和原因。入队不可用时退回直接发送。
 
-event {"dry_run": true}：忽略开关，只返回每个雪场的判断结果，不写日志、不发送。
+免打扰：太平洋时间 22:00~07:00（美东 01:00~10:00）不发送，07:00 之后的第一次运行补发。
+
+event {"dry_run": true}：忽略开关和免打扰，只返回每个雪场的判断结果，不写日志、不发送。
 """
 
 import os
@@ -23,6 +25,7 @@ from datetime import datetime, timezone
 import requests
 from push_service import (
     enqueue_snow_alert,
+    is_quiet_hours,
     send_snow_alert_notification,
     supabase_auth_headers,
 )
@@ -213,6 +216,17 @@ def lambda_handler(event, context):
                 'statusCode': 200,
                 'body': json.dumps({
                     'message': 'Snow push disabled, check skipped'
+                })
+            }
+
+        # 免打扰（太平洋时间 22:00~07:00）：本次不发；snow_notification_logs 没写，
+        # 07:00 之后第一次运行会照常发出（降雪日仍在未来 1~3 天内）
+        if not dry_run and is_quiet_hours():
+            print("[SKIP] 免打扰时段（太平洋时间 22:00~07:00），本次不发送")
+            return {
+                'statusCode': 200,
+                'body': json.dumps({
+                    'message': 'Quiet hours (22:00-07:00 PT), check skipped'
                 })
             }
 
